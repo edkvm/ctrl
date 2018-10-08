@@ -12,7 +12,14 @@ import (
 	"path/filepath"
 	"os"
 	"net"
-	"strings"
+	"text/template"
+	"bufio"
+	"io"
+)
+
+const (
+	SysWorkPath = "/tmp/exos"
+	FuncPath = "/tmp/exos/functions"
 )
 
 type mainConfig struct {
@@ -31,64 +38,43 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	dir = "/Users/klimslava/Projects/golang/src/github.com/edkvm/exos"
-
+	 dir = "/Users/klimslava/Projects/golang/src/github.com/edkvm/exos"
 	run(mainConfig{
 		basePath: dir,
-		stacksPath: fmt.Sprintf("%s/assembler/stacks", dir),
-		stacksList: map[string]string{"node8.9": "node8.9/index.js"},
+		stacksPath: fmt.Sprintf("%s/assembler/templates", dir),
+		stacksList: map[string]string{"node8.9": "node8.9/index.js.tmpl"},
 	})
 }
 
 func run(conf mainConfig) {
 
-	filename := createFunction()
-	exData := []byte(`
-	exports.handler = (event, callback) => {
-		console.log("with socket");
-		console.log(event);
-		console.log("after");
-	}`)
+	funcName := "echo"
+	//createFunction(funcName, "", "js")
 
-	err := ioutil.WriteFile(filename, exData, 0640)
-	if err != nil {
-		// TODO: File didn't open, Report as (SystemError)
-		log.Print(err)
-	}
+	curFuncPath := fmt.Sprintf("%s/handler.js", conf.basePath)
 
-	funcName := "test"
-	scoektPath := fmt.Sprintf("/tmp/%s_%s.sock", "test", genULID())
+	deployFunc(funcName, curFuncPath, conf.stackPath("node8.9"))
+
+	socketPath := fmt.Sprintf("/tmp/%s_%s.sock", funcName, genULID())
 
 	result := runFunction(
-		fmt.Sprintf("%s/%s", conf.basePath, funcName),
+		curFuncPath,
 		conf.stackPath("node8.9"),
-		scoektPath,
+		socketPath,
 	)
 
-	fmt.Printf("[INFO] %s", result)
+	log.Println("[INFO] %s", result)
 
 }
 
-
-func runFunction(funcPath string, stackPath string, ctrlSocketPath string) string {
+func runFunction(funcPath string, templatePath string, ctrlPath string) string {
 	cmdParams := []string{
-		stackPath,
-		ctrlSocketPath,
+		templatePath,
+		ctrlPath,
 		funcPath,
 	}
 
-	addr, err := net.ResolveUnixAddr("unix", ctrlSocketPath)
-	if err != nil {
-		fmt.Printf("Failed to resolve: %v\n", err)
-		os.Exit(1)
-	}
-	l, err := net.ListenUnix("unix", addr)
-	defer func() {
-		l.Close()
-		os.Remove(ctrlSocketPath)
-	}()
 	cmd := exec.Command("node", cmdParams...)
-
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -102,26 +88,14 @@ func runFunction(funcPath string, stackPath string, ctrlSocketPath string) strin
 	}
 	defer stderr.Close()
 
-	go func() {
-		conn, err := l.AcceptUnix()
-		defer conn.Close()
-		if err != nil {
-			log.Println(fmt.Sprintf("Error in accepting new connection: %v\n", err))
-			return
-		}
-		buf := make([]byte, 64)
-		conn.ReadFromUnix(buf)
-		op := strings.TrimSpace(string(buf))
-		if op != "__connected" {
-			log.Println(fmt.Sprintf("Wrong handshake from client: %v\n", op))
-			return
-		}
-		conn.Write([]byte(fmt.Sprintf("socket message Id (%s)", genULID())))
-	}()
-
+	// TODO: Add Instrumentation
 	if err := cmd.Start(); err != nil {
 		log.Println(fmt.Sprintf("Failed to start cmd: %v\n", err))
 	}
+
+	opCh := make(chan []byte, 0)
+	openCtrl(ctrlPath, opCh)
+	opCh <- []byte(fmt.Sprintf("socket message Id (%s)", genULID()))
 
 	// Read from stdout
 	buf := bytes.Buffer{}
@@ -137,9 +111,110 @@ func runFunction(funcPath string, stackPath string, ctrlSocketPath string) strin
 	return buf.String()
 }
 
-func createFunction() string {
-	filename := fmt.Sprintf("%s", "test.js")
+func openCtrl(path string, opChan <-chan []byte) {
+
+	addr, err := net.ResolveUnixAddr("unix", path)
+	if err != nil {
+		log.Println("Failed to resolve: %v", err)
+		os.Exit(1)
+	}
+
+	l, err := net.ListenUnix("unix", addr)
+
+	go func() {
+		conn, err := l.AcceptUnix()
+		if err != nil {
+			log.Printf("Error start accept on conn: %v\n", err)
+			return
+		}
+		defer conn.Close()
+		if err != nil {
+			log.Println(fmt.Sprintf("Error in accepting new connection: %v\n", err))
+			return
+		}
+		buf := make([]byte, 16)
+		n, _, _ := conn.ReadFromUnix(buf)
+		op := string(buf[:n])
+		if op != "connected" {
+			log.Println(fmt.Sprintf("Wrong handshake from client: %v\n", op))
+			return
+		}
+
+		select {
+		case op := <- opChan:
+			conn.Write(op)
+		}
+
+		l.Close()
+		os.Remove(path)
+	}()
+
+}
+
+func createFunction(name string, data string, ext string) string {
+	filename := fmt.Sprintf("%s.%s", name, ext)
+	exData := []byte(`
+	exports.handler = (event, callback) => {
+		console.log("with socket");
+		console.log(event);
+		console.log("after");
+	}`)
+
+	err := ioutil.WriteFile(filename, exData, 0640)
+	if err != nil {
+		// TODO: File didn't open, Report as (SystemError)
+		log.Print(err)
+	}
+
 	return filename
+}
+
+func deployFunc(name string, path string, templatePath string) {
+
+
+	funcDirPath := fmt.Sprintf("%s/%s", FuncPath, name)
+ 	os.Mkdir(funcDirPath, os.ModePerm)
+
+ 	// Install index.js
+	tmpl, _ := template.ParseFiles(templatePath)
+
+	indexFd, err := os.Create(fmt.Sprintf("%s/index.js", funcDirPath))
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	defer indexFd.Close()
+
+	w := bufio.NewWriter(indexFd)
+
+	tmpl.Execute(w, struct {
+		HandlerPath string
+	}{
+		HandlerPath: "handler",
+	})
+	w.Flush()
+
+	// Copy handler
+	srcFd, err := os.Open(path)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	defer srcFd.Close()
+
+	dstFd, err := os.Create(fmt.Sprintf("%s/handler.js", funcDirPath))
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	defer dstFd.Close()
+
+	_, err = io.Copy(dstFd, srcFd)
+	if err != nil {
+		// TODO: File didn'tmpl open, Report as (SystemError)
+		log.Print(err)
+	}
+
 }
 
 func updateFunction() {
