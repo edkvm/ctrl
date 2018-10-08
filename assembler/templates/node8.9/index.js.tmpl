@@ -1,6 +1,7 @@
 const readline = require('readline');
 const net = require('net');
 const fs = require('fs');
+const handler = require('./{{.HandlerPath}}');
 
 // Direct all console.log to stderr
 function pipeStdin() {
@@ -27,10 +28,10 @@ function pipeIPC(fd) {
     return new Promise(resolve => {
         client = net.createConnection(fd)
             .on('connect', () => {
-                client.write("__connected");
+                client.write("connected");
             })
             .on('error', (err) => {
-                console.error(err);
+                console.error(`__system${err}`);
             })
             .on('data', (data) => {
                 resolve(data.toString());
@@ -41,17 +42,9 @@ function pipeIPC(fd) {
 function main() {
 
     let args = process.argv.slice(2);
-    const executor = require(args[1]);
-
-    // pipeStdin().then(input => {
-    //     executor.handler(input, () => {
-    //         console.log('Done');
-    //     })
-    // });
     let fd = args[0];
-    console.log(fd)
     pipeIPC(fd).then(input => {
-        executor.handler(input, () => {
+        handler.handle(input, () => {
             console.log('Done');
         })
     });
