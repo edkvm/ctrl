@@ -3,6 +3,34 @@ const net = require('net');
 const fs = require('fs');
 const handler = require('./{{.HandlerPath}}');
 
+
+syslog = (function() {
+    let orig = console.log
+    return function() {
+        let tmp = process.stdout
+        try {
+
+             arguments[0] = `__sys_log|${arguments[0]}`
+             orig.apply(console, arguments)
+        } finally {
+            process.stdout = tmp
+        }
+    };
+})();
+
+syserr = (function() {
+    let orig = console.log
+    return function() {
+        let tmp = process.stdout
+        try {
+            arguments[0] = `_e_|${arguments[0]}`
+            orig.apply(console, arguments)
+        } finally {
+            process.stdout = tmp
+        }
+    }
+})()
+
 // Direct all console.log to stderr
 function pipeStdin() {
     let buf = '';
@@ -24,28 +52,48 @@ function pipeStdin() {
     });
 }
 
-function pipeIPC(fd) {
-    return new Promise(resolve => {
-        client = net.createConnection(fd)
-            .on('connect', () => {
-                client.write("connected");
-            })
-            .on('error', (err) => {
-                console.error(`__system${err}`);
-            })
-            .on('data', (data) => {
-                resolve(data.toString());
-            })
+function IPCServer(fd) {
+
+    srv = net.createConnection(fd)
+
+    srv.on('connect', () => {
+        srv.write("connected");
+    })
+    srv.on('error', (err) => {
+        syserr(`${err}`);
     })
 
+    return {
+        write: (data) => {
+            return new Promise(resolve => {
+                resolve(srv.write(data))
+            })
+        },
+        read: () => {
+            return new Promise(resolve => {
+                srv.on('data', (data) => {
+                    resolve(data.toString());
+                })
+            })
+        }
+
+
+    }
+
 }
+
 function main() {
 
     let args = process.argv.slice(2);
     let fd = args[0];
-    pipeIPC(fd).then(input => {
-        handler.handle(input, () => {
-            console.log('Done');
+    pipe = IPCServer(fd)
+    pipe.read().then(input => {
+        let fn = handler['{{.HandleName}}'];
+        fn(input, (err, data) => {
+            if (err !== null || error !== undefined) {
+                pipe.write(data)
+            }
+            syserr(`${err}`)
         })
     });
 }
