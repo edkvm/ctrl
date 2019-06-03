@@ -10,7 +10,7 @@ syslog = (function() {
         let tmp = process.stdout
         try {
 
-             arguments[0] = `__sys_log|${arguments[0]}`
+             arguments[0] = `__1|${arguments[0]}`
              orig.apply(console, arguments)
         } finally {
             process.stdout = tmp
@@ -23,7 +23,7 @@ syserr = (function() {
     return function() {
         let tmp = process.stdout
         try {
-            arguments[0] = `_e_|${arguments[0]}`
+            arguments[0] = `__2|${arguments[0]}`
             orig.apply(console, arguments)
         } finally {
             process.stdout = tmp
@@ -90,7 +90,7 @@ function main() {
     pipe.read().then(input => {
         let fn = handler['{{.HandleName}}'];
         fn(input, (err, data) => {
-            if (err !== null || error !== undefined) {
+            if (err !== null || err !== undefined) {
                 pipe.write(data)
             }
             syserr(`${err}`)
