@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"html/template"
+	"github.com/edkvm/ctrl"
 	"log"
 	"os"
 	"strings"
@@ -10,36 +10,18 @@ import (
 	"github.com/urfave/cli"
 )
 
-
-const (
-	servicePathDefult = "/usr/local/var/ctrl"
-	functionsPath = "actions"
-	tmpPath = "tmp"
-	templatePath = "assembler/templates"
-)
-
 type mainConfig struct {
 	wdPath     string
-	stacksPath string
-	stacksList map[string]string
 }
 
-func (mc mainConfig) stackPath(name string) string {
-	val := mc.stacksList[name]
-	return fmt.Sprintf("%s/%s", mc.stacksPath, val)
-}
 
 func main() {
 	//currentPath, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	wd, _ := os.Getwd()
+	wdPath, _ := os.Getwd()
 	app := cli.NewApp()
 
 	app.Name = "ctrl"
-	envConf := mainConfig{
-		wdPath:     wd,
-		stacksPath: fmt.Sprintf("%s/assembler/templates", servicePathDefult),
-		stacksList: map[string]string{"node8.9": "node8.9/index.js.tmpl"},
-	}
+
 
 	app.Commands = []cli.Command{
 		{
@@ -47,25 +29,29 @@ func main() {
 			Usage: "copy function to the runner, if the function does not exist it will be created",
 			Action: func(c *cli.Context) error {
 
-				stackNameDefault := "node8.9"
-				dirs := strings.Split(envConf.wdPath, "/")
+				dirs := strings.Split(wdPath, "/")
 
 				if len(dirs) < 2 {
 					// TODO: return error, path is not absolute
 				}
-				// TODO: check fo root
 
-
+				// Action name is the folder name
 				funcName := dirs[len(dirs) - 1]
-				log.Println("Func name", funcName)
-				srcPath := fmt.Sprintf("%s/action.js", envConf.wdPath)
+				log.Println("[ctrl] Deploying Action: ", funcName)
 
+				// Read action
+				srcPath := fmt.Sprintf("%s/action.js", wdPath)
 
-				tmpl, err := template.ParseFiles(envConf.stackPath(stackNameDefault))
+				packAction := ctrl.NewPack(funcName, "node8.9")
+
+				// Copy handler
+				srcFd, err := os.Open(srcPath)
 				if err != nil {
-					return fmt.Errorf("template for stack %s was not found, %s", stackNameDefault, err)
+					return err
 				}
-				err = deployFuncLocal(srcPath, funcPath(funcName), tmpl)
+				defer srcFd.Close()
+
+				err = packAction.Deploy(srcFd)
 				if err != nil {
 					log.Println(err)
 				}
@@ -91,14 +77,15 @@ func main() {
 			Action: func(c *cli.Context) error{
 
 				funcName := c.Args().First()
-				log.Printf("args: %s", funcName)
-				fr := newFuncRunner(funcName, funcPath(funcName))
+				log.Println("[ctrl] Running Action: ", funcName)
 
-				if _, err := os.Stat(fr.handlerPath); os.IsNotExist(err) {
+				fr := ctrl.NewAction(funcName)
+
+				if !fr.IsExists() {
 					log.Fatal(fmt.Sprintf("function %s does not exists", funcName))
 				}
 
-				result := fr.execute(fmt.Sprintf("socket message Id (%s)", genULID()))
+				result := fr.Execute(fmt.Sprintf("message from ctrl socket message Id (%s)", "1"))
 
 				log.Printf("[INFO] %v", result)
 
