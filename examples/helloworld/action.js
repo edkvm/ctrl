@@ -1,6 +1,6 @@
 
-	exports.myhandle = (event, callback) => {
-		console.log(process.version)
+	exports.main = (event, callback) => {
+		console.log(process+.version)
         console.log("with socket")
 		console.log(event)
 		console.error("ryo")

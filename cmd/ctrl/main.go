@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"log"
 	"os"
 	"strings"
@@ -11,8 +12,8 @@ import (
 
 
 const (
-	servicePathDefult = "/usr/local/var/pico"
-	functionsPath = "functions"
+	servicePathDefult = "/usr/local/var/ctrl"
+	functionsPath = "actions"
 	tmpPath = "tmp"
 	templatePath = "assembler/templates"
 )
@@ -33,7 +34,7 @@ func main() {
 	wd, _ := os.Getwd()
 	app := cli.NewApp()
 
-	app.Name = "pico"
+	app.Name = "ctrl"
 	envConf := mainConfig{
 		wdPath:     wd,
 		stacksPath: fmt.Sprintf("%s/assembler/templates", servicePathDefult),
@@ -57,7 +58,7 @@ func main() {
 
 				funcName := dirs[len(dirs) - 1]
 				log.Println("Func name", funcName)
-				srcPath := fmt.Sprintf("%s/handler.js", envConf.wdPath)
+				srcPath := fmt.Sprintf("%s/action.js", envConf.wdPath)
 
 
 				tmpl, err := template.ParseFiles(envConf.stackPath(stackNameDefault))
