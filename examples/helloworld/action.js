@@ -1,6 +1,6 @@
 
 	exports.main = (event, callback) => {
-		console.log(process+.version)
+		console.log(process.version)
         console.log("with socket")
 		console.log(event)
 		console.error("ryo")

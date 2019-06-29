@@ -1,4 +1,4 @@
-package main
+package ctrl
 
 import (
 	"bufio"
@@ -10,7 +10,7 @@ import (
 )
 
 
-type funcRunner struct {
+type Action struct {
 	Name        string
 	ExecId      string
 	execName    string
@@ -19,23 +19,31 @@ type funcRunner struct {
 	ctrlCh      chan struct{}
 }
 
-func newFuncRunner(name string, path string) *funcRunner {
+func NewAction(name string) *Action {
 	execId := genULID()
-
-	return &funcRunner{
+	actionPath := buildActionPath(name)
+	return &Action{
 		Name:        name,
 		ExecId:      execId,
 		execName:    "node",
-		handlerPath: fmt.Sprintf("%s/index.js", path),
-		sockPath:    fmt.Sprintf("%s/tmp/%s_%s.sock", path, name, execId),
+		handlerPath: fmt.Sprintf("%s/index.js", actionPath),
+		sockPath:    fmt.Sprintf("%s/tmp/%s_%s.sock", actionPath, name, execId),
 	}
 }
 
-func (fr *funcRunner) bindPipes() {
+func (fr *Action) bindPipes() {
 
 }
 
-func (fr *funcRunner) execute(input string) string {
+func (fr *Action) IsExists() bool {
+	if _, err := os.Stat(fr.handlerPath); os.IsNotExist(err) {
+		return false
+	}
+
+	return true
+}
+
+func (fr *Action) Execute(input string) string {
 	cmdParams := []string{
 		fr.handlerPath,
 		fr.sockPath,
@@ -91,7 +99,7 @@ func (fr *funcRunner) execute(input string) string {
 	return string(result)
 }
 
-func (fr *funcRunner) openSock(inputCh <-chan []byte, outCh chan []byte) {
+func (fr *Action) openSock(inputCh <-chan []byte, outCh chan []byte) {
 
 	addr, err := net.ResolveUnixAddr("unix", fr.sockPath)
 	if err != nil {
