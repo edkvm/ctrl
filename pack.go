@@ -12,19 +12,12 @@ import (
 	"github.com/oklog/ulid"
 )
 
-
-
-
-
 type StackConfig struct {
 	name               string
 	tmplPath           string
 	entryPointFile     string
 	entryPointFunction string
 }
-
-
-
 
 type Pack struct {
 	stack StackConfig

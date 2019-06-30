@@ -31,10 +31,6 @@ func NewAction(name string) *Action {
 	}
 }
 
-func (fr *Action) bindPipes() {
-
-}
-
 func (fr *Action) IsExists() bool {
 	if _, err := os.Stat(fr.handlerPath); os.IsNotExist(err) {
 		return false
@@ -89,6 +85,8 @@ func (fr *Action) Execute(input string) string {
 	fr.openSock(inputCh, outCh)
 
 	inputCh <- []byte(input)
+
+	// Wait for result
 	result := <-outCh
 
 
@@ -123,7 +121,7 @@ func (fr *Action) openSock(inputCh <-chan []byte, outCh chan []byte) {
 			log.Printf("Error in accepting new connection: %v\n", err)
 			return
 		}
-		buf := make([]byte, 16)
+		buf := make([]byte, 256)
 		n, _, _ := conn.ReadFromUnix(buf)
 		op := string(buf[:n])
 		if op != "connected" {
@@ -137,8 +135,16 @@ func (fr *Action) openSock(inputCh <-chan []byte, outCh chan []byte) {
 			conn.Write(op)
 		}
 
+
 		n, _, _ = conn.ReadFromUnix(buf)
-		outCh <- buf[:n]
+		result := buf[:n]
+
+		n, _, _ = conn.ReadFromUnix(buf)
+		op = string(buf[:n])
+		if op == "close" {
+			outCh <- result
+		}
+
 
 		l.Close()
 	}()
