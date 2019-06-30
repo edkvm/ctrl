@@ -62,7 +62,7 @@ func main() {
 		},
 		{
 			Name: "init",
-			Usage: "not usage yet",
+			Usage: "no usage yet",
 			Action: func(c *cli.Context) error {
 				log.Println("init not implemented")
 				return nil
@@ -79,13 +79,14 @@ func main() {
 				funcName := c.Args().First()
 				log.Println("[ctrl] Running Action: ", funcName)
 
+				city := c.Args().Get(1)
 				fr := ctrl.NewAction(funcName)
 
 				if !fr.IsExists() {
 					log.Fatal(fmt.Sprintf("function %s does not exists", funcName))
 				}
 
-				result := fr.Execute(fmt.Sprintf("message from ctrl socket message Id (%s)", "1"))
+				result := fr.Execute(fmt.Sprintf("{ \"city\": \"%s\" }",city))
 
 				log.Printf("[INFO] %v", result)
 

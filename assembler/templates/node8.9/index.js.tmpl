@@ -9,9 +9,8 @@ syslog = (function() {
     return function() {
         let tmp = process.stdout
         try {
-
-             arguments[0] = `__1|${arguments[0]}`
-             orig.apply(console, arguments)
+            arguments[0] = `__1|${arguments[0]}`
+            orig.apply(console, arguments)
         } finally {
             process.stdout = tmp
         }
@@ -75,6 +74,9 @@ function IPCServer(fd) {
                     resolve(data.toString());
                 })
             })
+        },
+        end: () => {
+            srv.write("close")
         }
 
 
@@ -87,13 +89,18 @@ function main() {
     let args = process.argv.slice(2);
     let fd = args[0];
     pipe = IPCServer(fd)
-    pipe.read().then(input => {
+    pipe.read().then(raw => {
         let fn = handler['{{.HandleName}}'];
+        let input = JSON.parse(raw)
         fn(input, (err, data) => {
-            if (err !== null || err !== undefined) {
+            if (err !== undefined && err !== null) {
+                syserr(`${err}`)
+                pipe.end()
+            } else {
                 pipe.write(data)
+                pipe.end()
             }
-            syserr(`${err}`)
+
         })
     });
 }
