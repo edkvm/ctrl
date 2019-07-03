@@ -75,18 +75,24 @@ func main() {
 			Name: "run",
 			Usage: "runs the specified function",
 			Action: func(c *cli.Context) error{
-
+				c.String()
 				funcName := c.Args().First()
 				log.Println("[ctrl] Running Action: ", funcName)
 
-				city := c.Args().Get(1)
+				args := c.Args()[1:]
+
 				fr := ctrl.NewAction(funcName)
 
 				if !fr.IsExists() {
 					log.Fatal(fmt.Sprintf("function %s does not exists", funcName))
 				}
 
-				result := fr.Execute(fmt.Sprintf("{ \"city\": \"%s\" }",city))
+				// Parse params
+				input := fmt.Sprintf(`{ "__action_config": {
+ "apiKey": "ba9f19affad8428980ee3a66462295a9", "unitSys": "metric" },"data": { "city": "%s" } }`, args[0])
+
+				log.Println("input: ", input)
+				result := fr.Execute(input)
 
 				log.Printf("[INFO] %v", result)
 

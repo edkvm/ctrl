@@ -1,11 +1,13 @@
 
-- deploy the Action
+
+- Allow Developer to Deploy the Action:
+    
   * zlib the content of the library, consider using git
   * send artifact to server
   * server save artifact in folder
 
-- run the Action
+- Allow Developer to Run the Action
 
-- list Actions
+- Allow Developer to List all the Actions They Previously Deployed 
 
-- create Action skeleton  
+- Create Action Skeleton  
