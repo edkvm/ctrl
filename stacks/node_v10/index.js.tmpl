@@ -20,12 +20,12 @@ syslog = (function() {
 syserr = (function() {
     let orig = console.log
     return function() {
-        let tmp = process.stdout
+        let tmp = process.stderr
         try {
             arguments[0] = `__2|${arguments[0]}`
             orig.apply(console, arguments)
         } finally {
-            process.stdout = tmp
+            process.stderr = tmp
         }
     }
 })()
@@ -56,7 +56,7 @@ function IPCServer(fd) {
     srv = net.createConnection(fd)
 
     srv.on('connect', () => {
-        srv.write("connected");
+        srv.write("op|start");
     })
     srv.on('error', (err) => {
         syserr(`${err}`);
@@ -76,7 +76,7 @@ function IPCServer(fd) {
             })
         },
         end: () => {
-            srv.write("close")
+            srv.write("op|close")
         }
 
 
@@ -93,7 +93,7 @@ function main() {
         try {
             const fn = handler['{{.HandleName}}'];
             let input = JSON.parse(raw)
-            fn(input, (err, data) => {
+            fn(input, (data, err) => {
                 if (err !== undefined && err !== null) {
                     syserr(`${err}`)
                     pipe.end()

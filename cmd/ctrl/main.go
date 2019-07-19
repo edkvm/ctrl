@@ -83,7 +83,7 @@ func main() {
 				// Parse params
 				result := fr.Execute([]string(args))
 
-				log.Println("result:", result)
+				log.Println(result)
 
 				return nil
 			},

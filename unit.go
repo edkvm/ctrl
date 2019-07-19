@@ -75,13 +75,13 @@ func (fr *Action) Execute(args []string) string {
 	errScanner := bufio.NewScanner(stderr)
 	go func() {
 		for outScanner.Scan() {
-			log.Printf("stdout scan: %v\n", outScanner.Text())
+			log.Printf("[%s] stdout: %v\n", fr.Name, outScanner.Text())
 		}
 	}()
 
 	go func() {
 		for errScanner.Scan() {
-			log.Printf("stderr scan: %v\n", errScanner.Text())
+			log.Printf("[%s] stderr: %v\n", fr.Name, errScanner.Text())
 		}
 	}()
 
@@ -106,24 +106,24 @@ func (fr *Action) openSock(inputCh <-chan []byte, outCh chan []byte) {
 
 	addr, err := net.ResolveUnixAddr("unix", fr.sockPath)
 	if err != nil {
-		log.Println("Failed to resolve: %v", err)
+		log.Println("failed to resolve: %v", err)
 		os.Exit(1)
 	}
 
-	l, err := net.ListenUnix("unix", addr)
+	sock, err := net.ListenUnix("unix", addr)
 	if err != nil {
-		log.Printf("Failed to open listener: %v\n", err)
+		log.Printf("failed to open listener: %v\n", err)
 	}
 
 	go func() {
-		conn, err := l.AcceptUnix()
+		conn, err := sock.AcceptUnix()
 		if err != nil {
-			log.Printf("Error start accept on conn: %v\n", err)
+			log.Printf("error start accept on conn: %v\n", err)
 			return
 		}
 		defer conn.Close()
 		if err != nil {
-			log.Printf("Error in accepting new connection: %v\n", err)
+			log.Printf("error in accepting new connection: %v\n", err)
 			return
 		}
 
@@ -131,8 +131,8 @@ func (fr *Action) openSock(inputCh <-chan []byte, outCh chan []byte) {
 		buf := make([]byte, 256)
 		n, _, _ := conn.ReadFromUnix(buf)
 		op := string(buf[:n])
-		if op != "connected" {
-			log.Println(fmt.Sprintf("Wrong handshake from client: %v\n", op))
+		if op != "op|start" {
+			log.Println(fmt.Sprintf("wrong handshake from client: %v\n", op))
 			return
 		}
 
@@ -142,19 +142,29 @@ func (fr *Action) openSock(inputCh <-chan []byte, outCh chan []byte) {
 			conn.Write(op)
 		}
 
-		// Wait for function output
-		n, _, _ = conn.ReadFromUnix(buf)
-		result := make([]byte, n)
-		copy(result, buf)
 
-		// Wait for connection close
-		n, _, _ = conn.ReadFromUnix(buf)
-		op = string(buf[:n])
-		if op == "close" {
-			outCh <- result
+		// Wait for function output
+		result := make([]byte, 256)
+		for {
+			n, _, err = conn.ReadFromUnix(buf)
+			if err != nil {
+				log.Println(err)
+				break
+			}
+
+			header := string(buf[:2])
+			if header == "op" {
+				op = string(buf[3:8])
+				if op == "close" {
+					break
+				}
+			}
+			copy(result, buf)
 		}
 
-		l.Close()
+		outCh <- result
+
+		sock.Close()
 	}()
 
 }
