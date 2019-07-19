@@ -5,53 +5,46 @@ import (
 	"github.com/edkvm/ctrl"
 	"log"
 	"os"
-	"strings"
+	"path/filepath"
+
 
 	"github.com/urfave/cli"
 )
 
-type mainConfig struct {
-	wdPath     string
-}
-
 
 func main() {
 	//currentPath, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	wdPath, _ := os.Getwd()
+
 	app := cli.NewApp()
 
 	app.Name = "ctrl"
-
 
 	app.Commands = []cli.Command{
 		{
 			Name: "deploy",
 			Usage: "copy function to the runner, if the function does not exist it will be created",
 			Action: func(c *cli.Context) error {
-
-				dirs := strings.Split(wdPath, "/")
-
-				if len(dirs) < 2 {
-					// TODO: return error, path is not absolute
+				wdPath, err := os.Getwd()
+				if err != nil {
+					log.Fatal(err)
 				}
 
-				// Action name is the folder name
-				funcName := dirs[len(dirs) - 1]
-				log.Println("[ctrl] Deploying Action: ", funcName)
+				if c.NArg() > 0 {
+					pathArg := c.Args().First()
+					wdPath, err = filepath.Abs(pathArg)
+					if err != nil {
+						log.Fatal(err)
+					}
+				}
 
-				// Read action
-				srcPath := fmt.Sprintf("%s/action.js", wdPath)
+				log.Println("deploying function from: ", wdPath)
 
-				packAction := ctrl.NewPack(funcName, "node8.9")
-
-				// Copy handler
-				srcFd, err := os.Open(srcPath)
+				pk, err := ctrl.BuildPack("node_v10", wdPath, )
 				if err != nil {
 					return err
 				}
-				defer srcFd.Close()
 
-				err = packAction.Deploy(srcFd)
+				err = pk.Deploy()
 				if err != nil {
 					log.Println(err)
 				}
@@ -75,26 +68,22 @@ func main() {
 			Name: "run",
 			Usage: "runs the specified function",
 			Action: func(c *cli.Context) error{
-				c.String()
+
 				funcName := c.Args().First()
-				log.Println("[ctrl] Running Action: ", funcName)
+				log.Println("running action: ", funcName)
 
 				args := c.Args()[1:]
 
 				fr := ctrl.NewAction(funcName)
 
 				if !fr.IsExists() {
-					log.Fatal(fmt.Sprintf("function %s does not exists", funcName))
+					log.Fatal(fmt.Sprintf("function does not exists: %s", funcName))
 				}
 
 				// Parse params
-				input := fmt.Sprintf(`{ "__action_config": {
- "apiKey": "ba9f19affad8428980ee3a66462295a9", "unitSys": "metric" },"data": { "city": "%s" } }`, args[0])
+				result := fr.Execute([]string(args))
 
-				log.Println("input: ", input)
-				result := fr.Execute(input)
-
-				log.Printf("[INFO] %v", result)
+				log.Println("result:", result)
 
 				return nil
 			},

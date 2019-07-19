@@ -9,12 +9,13 @@ import (
 	"os/exec"
 )
 
-
 type Action struct {
 	Name        string
 	ExecId      string
 	execName    string
 	handlerPath string
+	configPath  string
+	paramsPath  string
 	sockPath    string
 	ctrlCh      chan struct{}
 }
@@ -27,6 +28,8 @@ func NewAction(name string) *Action {
 		ExecId:      execId,
 		execName:    "node",
 		handlerPath: fmt.Sprintf("%s/index.js", actionPath),
+		configPath:  fmt.Sprintf("%s/config.json", actionPath),
+		paramsPath:  fmt.Sprintf("%s/params.json", actionPath),
 		sockPath:    fmt.Sprintf("%s/tmp/%s_%s.sock", actionPath, name, execId),
 	}
 }
@@ -39,7 +42,10 @@ func (fr *Action) IsExists() bool {
 	return true
 }
 
-func (fr *Action) Execute(input string) string {
+func (fr *Action) Execute(args []string) string {
+
+	input := fr.parseArgs(args)
+
 	cmdParams := []string{
 		fr.handlerPath,
 		fr.sockPath,
@@ -89,7 +95,6 @@ func (fr *Action) Execute(input string) string {
 	// Wait for result
 	result := <-outCh
 
-
 	if err := cmd.Wait(); err != nil {
 		log.Print(err)
 	}
@@ -121,6 +126,8 @@ func (fr *Action) openSock(inputCh <-chan []byte, outCh chan []byte) {
 			log.Printf("Error in accepting new connection: %v\n", err)
 			return
 		}
+
+		// Wait for connection
 		buf := make([]byte, 256)
 		n, _, _ := conn.ReadFromUnix(buf)
 		op := string(buf[:n])
@@ -135,18 +142,34 @@ func (fr *Action) openSock(inputCh <-chan []byte, outCh chan []byte) {
 			conn.Write(op)
 		}
 
-
+		// Wait for function output
 		n, _, _ = conn.ReadFromUnix(buf)
-		result := buf[:n]
+		result := make([]byte, n)
+		copy(result, buf)
 
+		// Wait for connection close
 		n, _, _ = conn.ReadFromUnix(buf)
 		op = string(buf[:n])
 		if op == "close" {
 			outCh <- result
 		}
 
-
 		l.Close()
 	}()
 
+}
+
+func (fr *Action) parseArgs(args []string) string {
+	conf := readFile(fr.configPath)
+	data := readFile(fr.paramsPath)
+
+	items := make([]interface{}, len(args))
+	for i, _ := range args {
+		items[i] = args[i]
+	}
+ 	params := fmt.Sprintf(string(data), items...)
+
+ 	parsed := fmt.Sprintf(`{ "$": %s, "params": %s }`, string(conf), params)
+
+	return parsed
 }

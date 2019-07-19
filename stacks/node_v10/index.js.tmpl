@@ -90,18 +90,22 @@ function main() {
     let fd = args[0];
     pipe = IPCServer(fd)
     pipe.read().then(raw => {
-        let fn = handler['{{.HandleName}}'];
-        let input = JSON.parse(raw)
-        fn(input, (err, data) => {
-            if (err !== undefined && err !== null) {
-                syserr(`${err}`)
-                pipe.end()
-            } else {
-                pipe.write(data)
-                pipe.end()
-            }
+        try {
+            const fn = handler['{{.HandleName}}'];
+            let input = JSON.parse(raw)
+            fn(input, (err, data) => {
+                if (err !== undefined && err !== null) {
+                    syserr(`${err}`)
+                    pipe.end()
+                } else {
+                    pipe.write(data)
+                    pipe.end()
+                }
 
-        })
+            })
+        } catch (err) {
+            syserr(`${err}`);
+        }
     });
 }
 
