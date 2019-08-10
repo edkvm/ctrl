@@ -5,15 +5,15 @@ const http = require('http');
  * @param {string} city any city
  * @returns {string} The temperature in that city
  */
-module.exports.main = (event, callback) => {
+module.exports.main = (params, ctx, callback) => {
 
     // Parse Event
-    let city = event.params.city;
-    let apiKey = event.$.config.apiKey;
-    let unitSys = event.$.config.unitSys;
+    let city = params.city;
+    let apiKey = ctx.config.apiKey;
+    let unitSys = ctx.config.unitSys;
 
     let url = buildUrl(city, unitSys, apiKey);
-    getWeather(url)
+    getApi(url)
         .then(function(data) {
             callback(`It's ${data.main.temp} degrees in ${data.name}!`, null);
         })
@@ -26,7 +26,7 @@ function buildUrl(city, unitSys, apiKey) {
     return `http://api.openweathermap.org/data/2.5/weather?q=${city}&units=${unitSys}&appid=${apiKey}`;
 }
 
-function getWeather(url) {
+function getApi(url) {
     return new Promise(function(resolve, reject) {
         http.get(url, (res) => {
             const { statusCode } = res;
@@ -53,7 +53,6 @@ function getWeather(url) {
             res.on('end', () => {
                 try {
                     let parsedData = JSON.parse(rawData);
-
                     resolve(parsedData);
                 } catch (err) {
                     reject(err);

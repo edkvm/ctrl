@@ -39,7 +39,7 @@ func main() {
 
 				log.Println("deploying function from: ", wdPath)
 
-				pk, err := ctrl.BuildPack("node_v10", wdPath, )
+				pk, err := ctrl.BuildPack("node_v10", wdPath)
 				if err != nil {
 					return err
 				}

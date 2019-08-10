@@ -56,19 +56,19 @@ func (fr *Action) Execute(args []string) string {
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		log.Printf("Failed to connect stdout: %v\n", err)
+		log.Printf("failed to connect stdout: %v\n", err)
 	}
 	defer stdout.Close()
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		log.Printf("Failed to connect stderr: %v\n", err)
+		log.Printf("failed to connect stderr: %v\n", err)
 	}
 	defer stderr.Close()
 
 	// TODO: Add Instrumentation
 	if err := cmd.Start(); err != nil {
-		log.Printf("Failed to start cmd: %v\n", err)
+		log.Printf("failed to start cmd: %v\n", err)
 	}
 
 	outScanner := bufio.NewScanner(stdout)
@@ -179,7 +179,7 @@ func (fr *Action) parseArgs(args []string) string {
 	}
  	params := fmt.Sprintf(string(data), items...)
 
- 	parsed := fmt.Sprintf(`{ "$": %s, "params": %s }`, string(conf), params)
+ 	parsed := fmt.Sprintf(`{ "ctx": %s, "params": %s }`, string(conf), params)
 
 	return parsed
 }
