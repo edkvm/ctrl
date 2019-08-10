@@ -25,10 +25,6 @@ type Pack struct {
 	name  string
 	files  map[string][]byte}
 
-type pack struct {
-
-}
-
 func BuildPack(stackName, wd string) (*Pack, error) {
 	// TODO: Add more error handeling
 	dirs := strings.Split(wd, "/")
@@ -108,6 +104,7 @@ func writeWrapper(path string, stack StackConfig) error {
 		HandlerPath: stack.entryPointFile,
 		HandleName:  stack.entryPointFunction,
 	})
+
 	w.Flush()
 
 	return nil
@@ -131,6 +128,7 @@ func (pk *Pack) Deploy() error {
 	}
 
 	for name, _ := range pk.files {
+		// TODO move to function
 		file := pk.files[name]
 		src := bytes.NewReader(file)
 

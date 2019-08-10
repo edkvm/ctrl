@@ -93,7 +93,7 @@ function main() {
         try {
             const fn = handler['{{.HandleName}}'];
             let input = JSON.parse(raw)
-            fn(input, (data, err) => {
+            fn(input.params, input.ctx, (data, err) => {
                 if (err !== undefined && err !== null) {
                     syserr(`${err}`)
                     pipe.end()
