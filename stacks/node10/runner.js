@@ -1,8 +1,6 @@
 const readline = require('readline');
 const net = require('net');
 const fs = require('fs');
-const handler = require('./{{.HandlerPath}}');
-
 
 syslog = (function() {
     let orig = console.log
@@ -18,7 +16,7 @@ syslog = (function() {
 })();
 
 syserr = (function() {
-    let orig = console.log
+    let orig = console.error
     return function() {
         let tmp = process.stderr
         try {
@@ -84,14 +82,14 @@ function IPCServer(fd) {
 
 }
 
-function main() {
+module.exports.run = (handler, handlerName) => {
 
     let args = process.argv.slice(2);
     let fd = args[0];
     pipe = IPCServer(fd)
     pipe.read().then(raw => {
         try {
-            const fn = handler['{{.HandleName}}'];
+            const fn = handler[handlerName];
             let input = JSON.parse(raw)
             fn(input.params, input.ctx, (data, err) => {
                 if (err !== undefined && err !== null) {
@@ -104,10 +102,11 @@ function main() {
 
             })
         } catch (err) {
-            syserr(`${err}`);
+            syserr(`${err} input: ${raw}`);
+            pipe.end()
         }
     });
 }
 
-main();
+
 

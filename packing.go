@@ -1,21 +1,17 @@
 package ctrl
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/oklog/ulid"
 
-	"github.com/rakyll/statik/fs"
 	_ "github.com/edkvm/ctrl/statik"
 )
 
@@ -59,63 +55,12 @@ func (pk *Pack) build(wd string) error {
 }
 
 
-
-func getTemplate(path string) (*template.Template, error) {
-	statickFS, err := fs.New()
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println(path)
-	fs, err := statickFS.Open(path)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	buf, err := ioutil.ReadAll(fs)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	tmpl, err := template.New("index").Parse(string(buf))
-	if err != nil {
-		return nil, fmt.Errorf("template for stack %s was not found, %s", path, err)
-	}
-
-	return tmpl, nil
-}
-
-func writeWrapper(path string, stack StackConfig) error {
-
-	indexFd, err := os.Create(fmt.Sprintf("%s/index.js", path))
-	if err != nil {
-		return err
-	}
-	defer indexFd.Close()
-
-	w := bufio.NewWriter(indexFd)
-
-
-	tmpl, _ := getTemplate(stack.tmplPath)
-
-	tmpl.Execute(w, struct {
-		HandlerPath string
-		HandleName  string
-	}{
-		HandlerPath: stack.entryPointFile,
-		HandleName:  stack.entryPointFunction,
-	})
-
-	w.Flush()
-
-	return nil
-
-}
-
 func (pk *Pack) Deploy() error {
 
 
 	actionPath := buildActionPath(pk.name)
 
+	// Create tmp folder
 	if _, err := os.Stat(actionPath); os.IsNotExist(err) {
 		err := os.MkdirAll(fmt.Sprintf("%s/tmp", actionPath), os.ModePerm)
 		if err != nil {
@@ -123,14 +68,17 @@ func (pk *Pack) Deploy() error {
 		}
 	}
 
-	if err := writeWrapper(actionPath, pk.stack); err != nil {
+
+	err := pk.stack.writeEntryPoint(actionPath)
+	if err != nil {
 		return nil
 	}
 
+	// Write Action files
 	for name, _ := range pk.files {
 		// TODO move to function
 		file := pk.files[name]
-		src := bytes.NewReader(file)
+		srcReader := bytes.NewReader(file)
 
 		dstFd, err := os.Create(fmt.Sprintf("%s/%s", actionPath, name))
 		if err != nil {
@@ -138,7 +86,7 @@ func (pk *Pack) Deploy() error {
 		}
 		defer dstFd.Close()
 
-		_, err = io.Copy(dstFd, src)
+		_, err = io.Copy(dstFd, srcReader)
 		if err != nil {
 			// TODO: File didn't open, Report as (SystemError)
 			return err
@@ -148,6 +96,7 @@ func (pk *Pack) Deploy() error {
 
 	return nil
 }
+
 
 func deployLocal() {
 

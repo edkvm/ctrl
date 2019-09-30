@@ -23,6 +23,12 @@ func main() {
 		{
 			Name: "deploy",
 			Usage: "copy function to the runner, if the function does not exist it will be created",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name: "stack, s",
+					Value: "node10",
+				},
+			},
 			Action: func(c *cli.Context) error {
 				wdPath, err := os.Getwd()
 				if err != nil {
@@ -39,7 +45,7 @@ func main() {
 
 				log.Println("deploying function from: ", wdPath)
 
-				pk, err := ctrl.BuildPack("node_v10", wdPath)
+				pk, err := ctrl.BuildPack("node10", wdPath)
 				if err != nil {
 					return err
 				}
@@ -62,24 +68,34 @@ func main() {
 			},
 		},
 		{
-			Name: "list",
+			Name: "ls",
+			Usage: "list all the available actions",
+			Action: func(c *cli.Context) error {
+				ar := ctrl.NewActionRepo()
+
+				fmt.Println(ar.List())
+				return nil
+			},
 		},
 		{
 			Name: "run",
 			Usage: "runs the specified function",
 			Action: func(c *cli.Context) error{
 
-				funcName := c.Args().First()
-				log.Println("running action: ", funcName)
+				actionName := c.Args().First()
+
 
 				args := c.Args()[1:]
+				ar := ctrl.NewActionRepo()
 
-				fr := ctrl.NewAction(funcName)
-
-				if !fr.IsExists() {
-					log.Fatal(fmt.Sprintf("function does not exists: %s", funcName))
+				if !ar.ActionExists(actionName) {
+					log.Fatal(fmt.Sprintf("action does not exists: %s", actionName))
 				}
 
+				fr := ctrl.NewAction(actionName)
+
+				log.Println("running action:", actionName)
+				log.Println("%v", []byte(args.First()))
 				// Parse params
 				result := fr.Execute([]string(args))
 
