@@ -2,12 +2,50 @@ package ctrl
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
 	"os/exec"
 )
+
+
+type ActionRepo struct {
+	path string
+}
+
+func NewActionRepo() *ActionRepo{
+	return &ActionRepo{
+		buildActionRepoPath(),
+	}
+}
+
+func (ar *ActionRepo) List() []string {
+
+	items, err := ioutil.ReadDir(ar.path)
+	if err != nil {
+		return nil
+	}
+
+	dirList := make([]string, 0)
+	for _, v := range items {
+		dirList = append(dirList, v.Name())
+	}
+
+	return dirList
+
+}
+
+func (ar *ActionRepo) ActionExists(name string) bool {
+	actionPath := buildActionPath(name)
+	if _, err := os.Stat(actionPath); os.IsNotExist(err) {
+		return false
+	}
+
+	return true
+}
 
 type Action struct {
 	Name        string
@@ -44,7 +82,7 @@ func (fr *Action) IsExists() bool {
 
 func (fr *Action) Execute(args []string) string {
 
-	input := fr.parseArgs(args)
+	payload := fr.buildActionPayload(args)
 
 	cmdParams := []string{
 		fr.handlerPath,
@@ -90,7 +128,7 @@ func (fr *Action) Execute(args []string) string {
 
 	fr.openSock(inputCh, outCh)
 
-	inputCh <- []byte(input)
+	inputCh <- payload
 
 	// Wait for result
 	result := <-outCh
@@ -169,17 +207,33 @@ func (fr *Action) openSock(inputCh <-chan []byte, outCh chan []byte) {
 
 }
 
-func (fr *Action) parseArgs(args []string) string {
-	conf := readFile(fr.configPath)
-	data := readFile(fr.paramsPath)
+func (fr *Action) buildActionPayload(args []string) []byte {
+	confDef := readFile(fr.configPath)
+	paramDef := readFile(fr.paramsPath)
 
-	items := make([]interface{}, len(args))
+	vals := make([]interface{}, len(args))
 	for i, _ := range args {
-		items[i] = args[i]
+		vals[i] = args[i]
 	}
- 	params := fmt.Sprintf(string(data), items...)
 
- 	parsed := fmt.Sprintf(`{ "ctx": %s, "params": %s }`, string(conf), params)
+	var params map[string]interface{}
+	json.Unmarshal(paramDef, &params)
 
-	return parsed
+	idx := 0
+ 	for k, _ := range params {
+ 		params[k] = vals[idx]
+ 		idx = idx + 1
+	}
+
+	var config map[string]interface{}
+	json.Unmarshal(confDef, &config)
+
+	payload := make(map[string]interface{},0)
+
+	payload["ctx"] = config
+	payload["params"] = params
+
+	buf, _ := json.Marshal(payload)
+
+	return buf
 }

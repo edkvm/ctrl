@@ -1,0 +1,7 @@
+const runner = require('./runner');
+const handler = require('./{{.HandlerPath}}');
+const handlerName = '{{.HandleName}}';
+
+
+runner.run(handler, handlerName);
+

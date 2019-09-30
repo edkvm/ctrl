@@ -8,8 +8,8 @@ Data Struct
     {
     	ID string
     	Name string
-    	Stack
-    	Path
+    	stack
+    	path
     	Config map[string]string
     }
 ```

@@ -5,12 +5,15 @@ const http = require('http');
  * @param {string} city any city
  * @returns {string} The temperature in that city
  */
-module.exports.main = (params, ctx, callback) => {
+module.exports.action = (params, ctx, callback) => {
+
+    // ENV
+    let apiKey = ctx.config.apiKey;
+    let unitSys = ctx.config.unitSys;
 
     // Parse Event
     let city = params.city;
-    let apiKey = ctx.config.apiKey;
-    let unitSys = ctx.config.unitSys;
+
 
     let url = buildUrl(city, unitSys, apiKey);
     getApi(url)
