@@ -1,25 +1,20 @@
-package ctrl
+package packing
 
 import (
 	"bytes"
 	"fmt"
+	"github.com/edkvm/ctrl/fs"
 	"io"
 	"log"
-	"math/rand"
 	"os"
 	"strings"
-	"time"
-
-	"github.com/oklog/ulid"
-
-	_ "github.com/edkvm/ctrl/statik"
 )
 
 
 type Pack struct {
 	stack StackConfig
 	name  string
-	files  map[string][]byte}
+	files map[string][]byte}
 
 func BuildPack(stackName, wd string) (*Pack, error) {
 	// TODO: Add more error handeling
@@ -31,11 +26,11 @@ func BuildPack(stackName, wd string) (*Pack, error) {
 	// Action name is the folder name
 	funcName := dirs[len(dirs) - 1]
 
-	log.Println("building function:", funcName)
+	log.Println("building action:", funcName)
 
 	pk := &Pack{
 		stack: stacksList[stackName],
-		name: funcName,
+		name:  funcName,
 		files: make(map[string][]byte, 3),
 	}
 
@@ -48,7 +43,7 @@ func (pk *Pack) build(wd string) error {
 	// Read action
 	for i := 0; i < len(pk.stack.fileNames); i++ {
 		fileName := pk.stack.fileNames[i]
-		pk.files[fileName] = readFile(fmt.Sprintf("%s/%s", wd, fileName))
+		pk.files[fileName] = fs.ReadFile(fmt.Sprintf("%s/%s", wd, fileName))
 	}
 
 	return nil
@@ -58,7 +53,7 @@ func (pk *Pack) build(wd string) error {
 func (pk *Pack) Deploy() error {
 
 
-	actionPath := buildActionPath(pk.name)
+	actionPath := fs.BuildActionPath(pk.name)
 
 	// Create tmp folder
 	if _, err := os.Stat(actionPath); os.IsNotExist(err) {
@@ -122,13 +117,4 @@ func deleteFunction() {
 
 }
 
-func genULID() string {
-	t := time.Now()
-	entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
-	id, err := ulid.New(ulid.Timestamp(t), entropy)
-	if err != nil {
 
-	}
-
-	return fmt.Sprintf("%s", id)
-}
