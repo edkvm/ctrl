@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/edkvm/ctrl"
+	"github.com/edkvm/ctrl/packing"
 	"log"
 	"os"
 	"path/filepath"
@@ -22,7 +23,7 @@ func main() {
 	app.Commands = []cli.Command{
 		{
 			Name: "deploy",
-			Usage: "copy function to the runner, if the function does not exist it will be created",
+			Usage: "copy action to the runner, if the action does not exist it will be created",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name: "stack, s",
@@ -43,9 +44,9 @@ func main() {
 					}
 				}
 
-				log.Println("deploying function from: ", wdPath)
+				log.Println("deploying action from: ", wdPath)
 
-				pk, err := ctrl.BuildPack("node10", wdPath)
+				pk, err := packing.BuildPack("node10", wdPath)
 				if err != nil {
 					return err
 				}
@@ -95,7 +96,7 @@ func main() {
 				fr := ctrl.NewAction(actionName)
 
 				log.Println("running action:", actionName)
-				log.Println("%v", []byte(args.First()))
+				log.Println("params:", args)
 				// Parse params
 				result := fr.Execute([]string(args))
 
@@ -111,3 +112,4 @@ func main() {
 		log.Fatal(err)
 	}
 }
+
