@@ -6,19 +6,23 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net"
 	"os"
 	"os/exec"
-)
+	"time"
 
+	ctrlFS "github.com/edkvm/ctrl/fs"
+	"github.com/oklog/ulid"
+)
 
 type ActionRepo struct {
 	path string
 }
 
-func NewActionRepo() *ActionRepo{
+func NewActionRepo() *ActionRepo {
 	return &ActionRepo{
-		buildActionRepoPath(),
+		ctrlFS.BuildActionRepoPath(),
 	}
 }
 
@@ -39,7 +43,7 @@ func (ar *ActionRepo) List() []string {
 }
 
 func (ar *ActionRepo) ActionExists(name string) bool {
-	actionPath := buildActionPath(name)
+	actionPath := ctrlFS.BuildActionPath(name)
 	if _, err := os.Stat(actionPath); os.IsNotExist(err) {
 		return false
 	}
@@ -60,11 +64,12 @@ type Action struct {
 
 func NewAction(name string) *Action {
 	execId := genULID()
-	actionPath := buildActionPath(name)
+	actionPath := ctrlFS.BuildActionPath(name)
 	return &Action{
-		Name:        name,
-		ExecId:      execId,
-		execName:    "node",
+		Name:     name,
+		ExecId:   execId,
+		execName: "node",
+		// Stack related
 		handlerPath: fmt.Sprintf("%s/index.js", actionPath),
 		configPath:  fmt.Sprintf("%s/config.json", actionPath),
 		paramsPath:  fmt.Sprintf("%s/params.json", actionPath),
@@ -72,12 +77,15 @@ func NewAction(name string) *Action {
 	}
 }
 
-func (fr *Action) IsExists() bool {
-	if _, err := os.Stat(fr.handlerPath); os.IsNotExist(err) {
-		return false
+func genULID() string {
+	t := time.Now()
+	entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
+	id, err := ulid.New(ulid.Timestamp(t), entropy)
+	if err != nil {
+
 	}
 
-	return true
+	return fmt.Sprintf("%s", id)
 }
 
 func (fr *Action) Execute(args []string) string {
@@ -180,7 +188,6 @@ func (fr *Action) openSock(inputCh <-chan []byte, outCh chan []byte) {
 			conn.Write(op)
 		}
 
-
 		// Wait for function output
 		result := make([]byte, 256)
 		for {
@@ -208,8 +215,8 @@ func (fr *Action) openSock(inputCh <-chan []byte, outCh chan []byte) {
 }
 
 func (fr *Action) buildActionPayload(args []string) []byte {
-	confDef := readFile(fr.configPath)
-	paramDef := readFile(fr.paramsPath)
+	confDef := ctrlFS.ReadFile(fr.configPath)
+	paramDef := ctrlFS.ReadFile(fr.paramsPath)
 
 	vals := make([]interface{}, len(args))
 	for i, _ := range args {
@@ -220,15 +227,15 @@ func (fr *Action) buildActionPayload(args []string) []byte {
 	json.Unmarshal(paramDef, &params)
 
 	idx := 0
- 	for k, _ := range params {
- 		params[k] = vals[idx]
- 		idx = idx + 1
+	for k, _ := range params {
+		params[k] = vals[idx]
+		idx = idx + 1
 	}
 
 	var config map[string]interface{}
 	json.Unmarshal(confDef, &config)
 
-	payload := make(map[string]interface{},0)
+	payload := make(map[string]interface{}, 0)
 
 	payload["ctx"] = config
 	payload["params"] = params

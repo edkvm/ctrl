@@ -20,7 +20,7 @@ syserr = (function() {
     return function() {
         let tmp = process.stderr
         try {
-            arguments[0] = `__2|${arguments[0]}`
+            arguments[0] = `__2|${arguments[0]}_`
             orig.apply(console, arguments)
         } finally {
             process.stderr = tmp
