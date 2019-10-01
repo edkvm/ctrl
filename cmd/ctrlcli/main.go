@@ -98,8 +98,10 @@ func main() {
 				log.Println("running action:", actionName)
 				log.Println("params:", args)
 				// Parse params
-				payload := fr.PayloadFromString([]string(args))
-				result := fr.Execute(payload)
+				params := fr.ParamsToJSON([]string(args))
+
+				payload, env := fr.BuildPayload(params)
+				result := ar.ExecuteAction(actionName, payload, env)
 
 				log.Println(result)
 
