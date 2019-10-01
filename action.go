@@ -88,9 +88,7 @@ func genULID() string {
 	return fmt.Sprintf("%s", id)
 }
 
-func (fr *Action) Execute(args []string) string {
-
-	payload := fr.buildActionPayload(args)
+func (fr *Action) Execute(payload []byte) string {
 
 	cmdParams := []string{
 		fr.handlerPath,
@@ -214,7 +212,23 @@ func (fr *Action) openSock(inputCh <-chan []byte, outCh chan []byte) {
 
 }
 
-func (fr *Action) buildActionPayload(args []string) []byte {
+func (fr *Action) PayloadFromJSON(params map[string]interface{}) []byte {
+	confDef := ctrlFS.ReadFile(fr.configPath)
+
+	var config map[string]interface{}
+	json.Unmarshal(confDef, &config)
+
+	payload := make(map[string]interface{}, 0)
+
+	payload["ctx"] = config
+	payload["params"] = params
+
+	buf, _ := json.Marshal(payload)
+
+	return buf
+}
+
+func (fr *Action) PayloadFromString(args []string) []byte {
 	confDef := ctrlFS.ReadFile(fr.configPath)
 	paramDef := ctrlFS.ReadFile(fr.paramsPath)
 

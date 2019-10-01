@@ -98,7 +98,8 @@ func main() {
 				log.Println("running action:", actionName)
 				log.Println("params:", args)
 				// Parse params
-				result := fr.Execute([]string(args))
+				payload := fr.PayloadFromString([]string(args))
+				result := fr.Execute(payload)
 
 				log.Println(result)
 
