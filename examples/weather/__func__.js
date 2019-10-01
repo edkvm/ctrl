@@ -8,11 +8,12 @@ const http = require('http');
 module.exports.action = (params, ctx, callback) => {
 
     // ENV
-    let apiKey = ctx.config.apiKey;
-    let unitSys = ctx.config.unitSys;
+    let apiKey = process.env.API_KEY;
+    let unitSys = params.unit || process.env.DEFAULT_UNIT_SYS;
 
     // Parse Event
     let city = params.city;
+    let language = params.city;
 
 
     let url = buildUrl(city, unitSys, apiKey);
@@ -37,9 +38,12 @@ function getApi(url) {
             const contentType = res.headers['content-type'];
 
             let error;
-            if (statusCode !== 200) {
-                error = new Error('request failed.\n' +
-                    `status code: ${statusCode}`);
+            if (statusCode == 404) {
+                console.error(`request failed. status code: ${statusCode}`)
+                error = new Error(`location not found`);
+            } else if (statusCode !== 200) {
+                console.error(`request failed. status code: ${statusCode}`)
+
             } else if (!/^application\/json/.test(contentType)) {
                 error = new Error('invalid content-type.\n' +
                     `expected application/json but received ${contentType}`);

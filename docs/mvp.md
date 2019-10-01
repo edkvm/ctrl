@@ -29,7 +29,7 @@ Engine
 #### Tasks
 - [x] Allow Developer to Deploy the Action:
   
-  * Allow to deploy from current working dir or path  
+  - [x] Allow to deploy from current working dir or path  
   
 - [x] Parse flags
 
@@ -37,7 +37,9 @@ Engine
 
 - [x] Allow Developer to List all the Actions They Previously Deployed
 
-- [ ] Add named params 
+- [ ] Add named params to cli
+
+- [ ] Validate params
 
 - [ ] Fix logging 
 
@@ -51,4 +53,6 @@ Engine
 
 - [ ] Add Stages/Envs When Deploying an Action 
 
-- [ ] Create Action Skeleton  
+- [ ] Create Action Skeleton 
+
+- [ ] Log all server actions(deploy, run, trigger, shutdown, restart) 
