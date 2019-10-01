@@ -2,6 +2,7 @@ package ctrl
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -53,27 +54,17 @@ func (ar *ActionRepo) ActionExists(name string) bool {
 
 type Action struct {
 	Name        string
-	ExecId      string
-	execName    string
-	handlerPath string
 	configPath  string
 	paramsPath  string
-	sockPath    string
 	ctrlCh      chan struct{}
 }
 
 func NewAction(name string) *Action {
-	execId := genULID()
 	actionPath := ctrlFS.BuildActionPath(name)
 	return &Action{
 		Name:     name,
-		ExecId:   execId,
-		execName: "node",
-		// Stack related
-		handlerPath: fmt.Sprintf("%s/index.js", actionPath),
 		configPath:  fmt.Sprintf("%s/config.json", actionPath),
 		paramsPath:  fmt.Sprintf("%s/params.json", actionPath),
-		sockPath:    fmt.Sprintf("%s/tmp/%s_%s.sock", actionPath, name, execId),
 	}
 }
 
@@ -88,15 +79,40 @@ func genULID() string {
 	return fmt.Sprintf("%s", id)
 }
 
-func (fr *Action) Execute(payload []byte) string {
+type executor struct {
+	ID string
+	execName    string
+	handlerPath string
+	sockPath    string
+}
 
+func newExecuter(name string, stack string) *executor {
+	id := genULID()
+	actionPath := ctrlFS.BuildActionPath(name)
+	return &executor{
+		ID: id,
+		execName: "node",
+		// Stack related
+		handlerPath: fmt.Sprintf("%s/index.js", actionPath),
+		sockPath:    fmt.Sprintf("%s/tmp/%s_%s.sock", actionPath, name, id),
+	}
+}
+
+func (ar *ActionRepo) ExecuteAction(name string, payload []byte, env []string) string {
+
+	pod := newExecuter(name, "")
+	handlerPath := pod.handlerPath
+	sockPath := pod.sockPath
+
+	execName := pod.execName
 	cmdParams := []string{
-		fr.handlerPath,
-		fr.sockPath,
+		handlerPath,
+		sockPath,
 	}
 
 	// TODO: Add context to cmd
-	cmd := exec.Command(fr.execName, cmdParams...)
+	cmd := exec.Command(execName, cmdParams...)
+	cmd.Env = env
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -119,20 +135,20 @@ func (fr *Action) Execute(payload []byte) string {
 	errScanner := bufio.NewScanner(stderr)
 	go func() {
 		for outScanner.Scan() {
-			log.Printf("[%s] stdout: %v\n", fr.Name, outScanner.Text())
+			log.Printf("[%s] stdout: %v\n", name, outScanner.Text())
 		}
 	}()
 
 	go func() {
 		for errScanner.Scan() {
-			log.Printf("[%s] stderr: %v\n", fr.Name, errScanner.Text())
+			log.Printf("[%s] stderr: %v\n", name, errScanner.Text())
 		}
 	}()
 
 	inputCh := make(chan []byte, 0)
 	outCh := make(chan []byte, 0)
 
-	fr.openSock(inputCh, outCh)
+	pod.openSock(inputCh, outCh)
 
 	inputCh <- payload
 
@@ -143,12 +159,13 @@ func (fr *Action) Execute(payload []byte) string {
 		log.Print(err)
 	}
 
-	return string(result)
+	return string(bytes.TrimRight(result, "\x00"))
+
 }
 
-func (fr *Action) openSock(inputCh <-chan []byte, outCh chan []byte) {
+func (ex *executor) openSock(inputCh <-chan []byte, outCh chan []byte) {
 
-	addr, err := net.ResolveUnixAddr("unix", fr.sockPath)
+	addr, err := net.ResolveUnixAddr("unix", ex.sockPath)
 	if err != nil {
 		log.Println("failed to resolve: %v", err)
 		os.Exit(1)
@@ -212,24 +229,7 @@ func (fr *Action) openSock(inputCh <-chan []byte, outCh chan []byte) {
 
 }
 
-func (fr *Action) PayloadFromJSON(params map[string]interface{}) []byte {
-	confDef := ctrlFS.ReadFile(fr.configPath)
-
-	var config map[string]interface{}
-	json.Unmarshal(confDef, &config)
-
-	payload := make(map[string]interface{}, 0)
-
-	payload["ctx"] = config
-	payload["params"] = params
-
-	buf, _ := json.Marshal(payload)
-
-	return buf
-}
-
-func (fr *Action) PayloadFromString(args []string) []byte {
-	confDef := ctrlFS.ReadFile(fr.configPath)
+func (fr *Action) ParamsToJSON(args []string) map[string]interface{} {
 	paramDef := ctrlFS.ReadFile(fr.paramsPath)
 
 	vals := make([]interface{}, len(args))
@@ -246,15 +246,28 @@ func (fr *Action) PayloadFromString(args []string) []byte {
 		idx = idx + 1
 	}
 
+	return params
+}
+
+func (fr *Action) BuildPayload(params map[string]interface{}) ([]byte, []string) {
+	configDef := ctrlFS.ReadFile(fr.configPath)
+
 	var config map[string]interface{}
-	json.Unmarshal(confDef, &config)
+	json.Unmarshal(configDef, &config)
 
 	payload := make(map[string]interface{}, 0)
 
-	payload["ctx"] = config
+	payload["ctx"] = ""
 	payload["params"] = params
 
 	buf, _ := json.Marshal(payload)
 
-	return buf
+	env := make([]string, 0)
+	for k, v := range config {
+		env = append(env, fmt.Sprintf("%v=%v", k, v))
+	}
+
+	return buf, env
 }
+
+
