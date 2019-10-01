@@ -35,7 +35,11 @@ Engine
 
 - [x] Allow Developer to Run the Action
 
-- [ ] Allow Developer to List all the Actions They Previously Deployed 
+- [x] Allow Developer to List all the Actions They Previously Deployed
+
+- [ ] Add named params 
+
+- [ ] Fix logging 
 
 - [ ] Create a server
 

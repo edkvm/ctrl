@@ -16,6 +16,7 @@ module.exports.action = (params, ctx, callback) => {
 
 
     let url = buildUrl(city, unitSys, apiKey);
+    console.log("Sending request");
     getApi(url)
         .then(function(data) {
             callback(`It's ${data.main.temp} degrees in ${data.name}!`, null);
