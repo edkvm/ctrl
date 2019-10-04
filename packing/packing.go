@@ -4,17 +4,28 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/edkvm/ctrl/fs"
+	"github.com/edkvm/ctrl/packing/stacks"
 	"io"
 	"log"
 	"os"
 	"strings"
 )
 
+type StackConfig interface {
+	Deploy(path string) error
+	Build(wd string) (map[string][]byte, error)
+}
+
+var stacksList = map[string]StackConfig{
+	"node10": stacks.NewNodev10(),
+	"go": stacks.NewGoV1(),
+}
 
 type Pack struct {
 	stack StackConfig
 	name  string
-	files map[string][]byte}
+	files map[string][]byte
+}
 
 func BuildPack(stackName, wd string) (*Pack, error) {
 	// TODO: Add more error handeling
@@ -26,29 +37,22 @@ func BuildPack(stackName, wd string) (*Pack, error) {
 	// Action name is the folder name
 	funcName := dirs[len(dirs) - 1]
 
-	log.Println("building action:", funcName)
-
 	pk := &Pack{
 		stack: stacksList[stackName],
 		name:  funcName,
 		files: make(map[string][]byte, 3),
 	}
 
-	pk.build(wd)
-
-	return pk, nil
-}
-
-func (pk *Pack) build(wd string) error {
-	// Read action
-	for i := 0; i < len(pk.stack.fileNames); i++ {
-		fileName := pk.stack.fileNames[i]
-		pk.files[fileName] = fs.ReadFile(fmt.Sprintf("%s/%s", wd, fileName))
+	files, err := pk.stack.Build(wd)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
-}
+	pk.files = files
 
+	log.Println("built action:", funcName)
+	return pk, nil
+}
 
 func (pk *Pack) Deploy() error {
 
@@ -64,7 +68,7 @@ func (pk *Pack) Deploy() error {
 	}
 
 
-	err := pk.stack.writeEntryPoint(actionPath)
+	err := pk.stack.Deploy(actionPath)
 	if err != nil {
 		return nil
 	}
@@ -91,30 +95,3 @@ func (pk *Pack) Deploy() error {
 
 	return nil
 }
-
-
-func deployLocal() {
-
-}
-
-func updateFunction() {
-
-}
-
-func updateFunctionResources() {
-
-}
-
-func createFunctionSchedual() {
-
-}
-
-func pauseFunction() {
-
-}
-
-func deleteFunction() {
-
-}
-
-

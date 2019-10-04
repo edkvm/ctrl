@@ -46,7 +46,8 @@ func main() {
 
 				log.Println("deploying action from: ", wdPath)
 
-				pk, err := packing.BuildPack("node10", wdPath)
+				stackName := c.String("stack")
+				pk, err := packing.BuildPack(stackName, wdPath)
 				if err != nil {
 					return err
 				}

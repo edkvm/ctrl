@@ -163,6 +163,39 @@ func (ar *ActionRepo) ExecuteAction(name string, payload []byte, env []string) s
 
 }
 
+//
+//import (
+//	"fmt"
+//	"log"
+//	"net/rpc/jsonrpc"
+//)
+//
+//const SockAddr = ":1234"//"eddy.sock"
+//
+//type Greeter struct {
+//}
+//
+//func (g Greeter) Greet(name *string, reply *string) error {
+//	*reply = "Hello, " + *name
+//	return nil
+//}
+//
+//func main() {
+//
+//	client, err := jsonrpc.Dial("tcp", SockAddr)
+//	if err != nil {
+//		log.Fatal("dialing:", err)
+//	}
+//	name := 4
+//	log.Println("send")
+//	var reply string
+//	err = client.Call("add", &name, &reply)
+//	log.Println("rcv")
+//	if err != nil {
+//		log.Fatal("arith error:", err)
+//	}
+//	fmt.Printf("Arith: %d=%d", name, reply)
+//}
 func (ex *executor) openSock(inputCh <-chan []byte, outCh chan []byte) {
 
 	addr, err := net.ResolveUnixAddr("unix", ex.sockPath)
