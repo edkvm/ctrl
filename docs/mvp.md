@@ -55,4 +55,6 @@ Engine
 
 - [ ] Create Action Skeleton 
 
-- [ ] Log all server actions(deploy, run, trigger, shutdown, restart) 
+- [ ] Log all server actions(deploy, run, trigger, shutdown, restart)
+
+- [ ] Deploy Remotely 

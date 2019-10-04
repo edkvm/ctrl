@@ -5,7 +5,7 @@ const http = require('http');
  * @param {string} city any city
  * @returns {string} The temperature in that city
  */
-module.exports.action = (params, ctx, callback) => {
+module.exports.action = async (params, ctx) => {
 
     // ENV
     let apiKey = process.env.API_KEY;
@@ -17,14 +17,13 @@ module.exports.action = (params, ctx, callback) => {
 
 
     let url = buildUrl(city, unitSys, apiKey);
-    console.log("Sending request");
-    getApi(url)
-        .then(function(data) {
-            callback(`It's ${data.main.temp} degrees in ${data.name}!`, null);
-        })
-        .catch(function(err) {
-            callback(null, err);
-        });
+
+    const data =
+        await getApi(url)
+             .catch(err => {
+                 return "e"
+             });
+    return `It's ${data.main.temp} degrees in ${data.name}!`
 };
 
 function buildUrl(city, unitSys, apiKey) {
@@ -32,7 +31,7 @@ function buildUrl(city, unitSys, apiKey) {
 }
 
 function getApi(url) {
-    return new Promise(function(resolve, reject) {
+    return new Promise((resolve, reject) => {
         http.get(url, (res) => {
             const { statusCode } = res;
             const contentType = res.headers['content-type'];
@@ -56,7 +55,9 @@ function getApi(url) {
             res.setEncoding('utf8');
 
             let rawData = '';
-            res.on('data', (chunk) => { rawData += chunk; });
+            res.on('data', (dataChunk) => {
+                rawData += dataChunk;
+            });
 
             res.on('end', () => {
                 try {
