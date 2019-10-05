@@ -2,13 +2,12 @@ package ctrl
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"math/rand"
-	"net"
+	"net/rpc"
 	"os"
 	"os/exec"
 	"time"
@@ -91,28 +90,22 @@ func newExecuter(name string, stack string) *executor {
 	actionPath := ctrlFS.BuildActionPath(name)
 	return &executor{
 		ID: id,
-		execName: "node",
 		// Stack related
-		handlerPath: fmt.Sprintf("%s/index.js", actionPath),
+		handlerPath: fmt.Sprintf("%s/action", actionPath),
 		sockPath:    fmt.Sprintf("%s/tmp/%s_%s.sock", actionPath, name, id),
 	}
 }
 
-func (ar *ActionRepo) ExecuteAction(name string, payload []byte, env []string) string {
+func (ar *ActionRepo) ExecuteAction(name string, payload []byte, env []string) interface{} {
 
 	pod := newExecuter(name, "")
-	handlerPath := pod.handlerPath
-	sockPath := pod.sockPath
 
-	execName := pod.execName
-	cmdParams := []string{
-		handlerPath,
-		sockPath,
-	}
+	execName := pod.handlerPath
+
 
 	// TODO: Add context to cmd
-	cmd := exec.Command(execName, cmdParams...)
-	cmd.Env = env
+	cmd := exec.Command(execName)
+	cmd.Env = append(env, fmt.Sprintf("CTRL_INT_SOCKET=%v",pod.sockPath))
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -145,21 +138,19 @@ func (ar *ActionRepo) ExecuteAction(name string, payload []byte, env []string) s
 		}
 	}()
 
-	inputCh := make(chan []byte, 0)
-	outCh := make(chan []byte, 0)
-
-	pod.openSock(inputCh, outCh)
-
-	inputCh <- payload
-
+	log.Println("[ctrl]", "starting")
 	// Wait for result
-	result := <-outCh
 
+	time.Sleep(1*time.Second)
+	result, err := pod.executeRPC(pod.sockPath, payload)
+
+
+	cmd.Process.Kill()
 	if err := cmd.Wait(); err != nil {
 		log.Print(err)
 	}
 
-	return string(bytes.TrimRight(result, "\x00"))
+	return result
 
 }
 
@@ -196,70 +187,36 @@ func (ar *ActionRepo) ExecuteAction(name string, payload []byte, env []string) s
 //	}
 //	fmt.Printf("Arith: %d=%d", name, reply)
 //}
-func (ex *executor) openSock(inputCh <-chan []byte, outCh chan []byte) {
-
-	addr, err := net.ResolveUnixAddr("unix", ex.sockPath)
+func (ex *executor) executeRPC(fd string , payload []byte) (interface{}, error) {
+	c, err := rpc.DialHTTP("unix", fd)
 	if err != nil {
-		log.Println("failed to resolve: %v", err)
-		os.Exit(1)
+		log.Fatalln("[ctrl]", err)
 	}
 
-	sock, err := net.ListenUnix("unix", addr)
+	var raw []byte
+	err = c.Call("Action.Invoke", payload, &raw)
 	if err != nil {
-		log.Printf("failed to open listener: %v\n", err)
+		log.Fatalln(err)
 	}
 
-	go func() {
-		conn, err := sock.AcceptUnix()
-		if err != nil {
-			log.Printf("error start accept on conn: %v\n", err)
-			return
-		}
-		defer conn.Close()
-		if err != nil {
-			log.Printf("error in accepting new connection: %v\n", err)
-			return
-		}
+	var result struct {
+		ID string
+		Payload []byte
+	}
+	err = json.Unmarshal(raw, &result)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-		// Wait for connection
-		buf := make([]byte, 256)
-		n, _, _ := conn.ReadFromUnix(buf)
-		op := string(buf[:n])
-		if op != "op|start" {
-			log.Println(fmt.Sprintf("wrong handshake from client: %v\n", op))
-			return
-		}
 
-		// TODO: Add system context
-		select {
-		case op := <-inputCh:
-			conn.Write(op)
-		}
 
-		// Wait for function output
-		result := make([]byte, 256)
-		for {
-			n, _, err = conn.ReadFromUnix(buf)
-			if err != nil {
-				log.Println(err)
-				break
-			}
+	var final interface{}
+	err = json.Unmarshal(result.Payload, &final)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-			header := string(buf[:2])
-			if header == "op" {
-				op = string(buf[3:8])
-				if op == "close" {
-					break
-				}
-			}
-			copy(result, buf)
-		}
-
-		outCh <- result
-
-		sock.Close()
-	}()
-
+	return final, nil
 }
 
 func (fr *Action) ParamsToJSON(args []string) map[string]interface{} {
@@ -288,12 +245,14 @@ func (fr *Action) BuildPayload(params map[string]interface{}) ([]byte, []string)
 	var config map[string]interface{}
 	json.Unmarshal(configDef, &config)
 
-	payload := make(map[string]interface{}, 0)
+	invReq := make(map[string]interface{}, 0)
 
-	payload["ctx"] = ""
-	payload["params"] = params
+	encParams, _ := json.Marshal(params)
+	invReq["payload"] = encParams
+	invReq["ctx"] = ""
 
-	buf, _ := json.Marshal(payload)
+
+	buf, _ := json.Marshal(invReq)
 
 	env := make([]string, 0)
 	for k, v := range config {

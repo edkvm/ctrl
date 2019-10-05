@@ -11,6 +11,7 @@ import (
 type stackFile struct {
 	name   string
 	output string
+	exectuable bool
 	remove bool
 }
 
@@ -23,7 +24,7 @@ func NewGoV1() *goStack {
 		filenames: []stackFile{
 			{
 				name:   "action",
-				remove: false,
+				remove: true,
 			},
 			{
 				name: "config.json",
@@ -57,9 +58,12 @@ func (gs *goStack) Build(wd string) (map[string][]byte, error) {
 			continue
 		}
 
+		
 		if gs.filenames[i].remove {
 			os.Remove(path)
 		}
+
+
 
 		files[filename] = content
 	}
