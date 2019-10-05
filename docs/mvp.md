@@ -1,6 +1,25 @@
 
 # Alpha
 
+Single user
+
+Deploy Action from computer to a remote server
+
+Run from web browser
+
+Dashboard screen:
+    List of actions
+    
+Add trigger:
+    Webhook
+    Schedule
+
+Enable to create a chani of actions:
+    This can be bootstrapped using Webhooks and then with internal routing
+    
+Store secrets securely
+
+Find sandboxing solution
 ## Highlevel design
 
 ```
@@ -47,7 +66,7 @@ Engine
 
 - [ ] Add Action Schedule
 
-- [ ] Add Go support
+- [x] Add Go support
 
 - [ ] Expose Action as API Endpoint
 
