@@ -79,7 +79,7 @@ func (pk *Pack) Deploy() error {
 		file := pk.files[name]
 		srcReader := bytes.NewReader(file)
 
-		dstFd, err := os.Create(fmt.Sprintf("%s/%s", actionPath, name))
+		dstFd, err := os.OpenFile(fmt.Sprintf("%s/%s", actionPath, name),os.O_RDWR|os.O_CREATE|os.O_TRUNC,os.ModePerm)
 		if err != nil {
 			return err
 		}
