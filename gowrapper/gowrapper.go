@@ -97,7 +97,7 @@ func Start(handler interface{}) {
 
 	err = http.Serve(l, nil)
 	if err != nil {
-
+		log.Fatal(err)
 	}
 }
 

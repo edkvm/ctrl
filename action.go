@@ -139,9 +139,6 @@ func (ar *ActionRepo) ExecuteAction(name string, payload []byte, env []string) i
 	}()
 
 	log.Println("[ctrl]", "starting")
-	// Wait for result
-
-	time.Sleep(1*time.Second)
 	result, err := pod.executeRPC(pod.sockPath, payload)
 
 
@@ -188,10 +185,8 @@ func (ar *ActionRepo) ExecuteAction(name string, payload []byte, env []string) i
 //	fmt.Printf("Arith: %d=%d", name, reply)
 //}
 func (ex *executor) executeRPC(fd string , payload []byte) (interface{}, error) {
-	c, err := rpc.DialHTTP("unix", fd)
-	if err != nil {
-		log.Fatalln("[ctrl]", err)
-	}
+
+	c, err := connectToRPC(fd)
 
 	var raw []byte
 	err = c.Call("Action.Invoke", payload, &raw)
@@ -208,8 +203,6 @@ func (ex *executor) executeRPC(fd string , payload []byte) (interface{}, error) 
 		log.Fatalln(err)
 	}
 
-
-
 	var final interface{}
 	err = json.Unmarshal(result.Payload, &final)
 	if err != nil {
@@ -217,6 +210,24 @@ func (ex *executor) executeRPC(fd string , payload []byte) (interface{}, error) 
 	}
 
 	return final, nil
+}
+
+func connectToRPC(fd string) (*rpc.Client, error) {
+	var c *rpc.Client
+	var err error
+	retries := 10
+	n := 0
+	for n < retries {
+		c, err = rpc.DialHTTP("unix", fd)
+		if err == nil {
+			break
+		}
+		time.Sleep(5*time.Millisecond)
+		n = n + 1
+	}
+
+	return c, nil
+
 }
 
 func (fr *Action) ParamsToJSON(args []string) map[string]interface{} {
