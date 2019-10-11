@@ -26,6 +26,8 @@ type Action struct {
 	Path      LocalePath
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	configPath string
+	paramsPath string
 }
 
 func NewAction(name string) *Action {
@@ -73,6 +75,8 @@ func (fr *Action) BuildEnv() []string {
 	for k, v := range config {
 		env = append(env, fmt.Sprintf("%v=%v", k, v))
 	}
+
+	return env
 }
 
 func (fr *Action) EncodePayload(params map[string]interface{}) []byte {
