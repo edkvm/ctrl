@@ -21,25 +21,25 @@ func (r *actionRepo) FindAll() []*action.Action {
 	return nil
 }
 
-type triggerRepo struct {
+type scheduleRepo struct {
 	mtx sync.RWMutex
 	triggers map[action.ScheduleID]*action.Schedule
 }
 
-func NewTriggerRepo() *triggerRepo {
-	return &triggerRepo{
+func NewTriggerRepo() *scheduleRepo {
+	return &scheduleRepo{
 		triggers: make(map[action.ScheduleID]*action.Schedule, 0),
 	}
 }
 
-func (r *triggerRepo) Store(t *action.Schedule) error {
+func (r *scheduleRepo) Store(t *action.Schedule) error {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 	r.triggers[t.ID] = t
 	return nil
 }
 
-func (r *triggerRepo) FindClosestScheduleTrigger(dur time.Duration) *action.Schedule {
+func (r *scheduleRepo) FindNext(dur time.Duration) *action.Schedule {
 	r.mtx.RLock()
 	defer r.mtx.RUnlock()
 
@@ -56,7 +56,7 @@ func (r *triggerRepo) FindClosestScheduleTrigger(dur time.Duration) *action.Sche
 	return item
 }
 
-func (r *triggerRepo) FindAllScheduleTriggers(time time.Time) []*action.Schedule {
+func (r *scheduleRepo) FindAllByTime(time time.Time) []*action.Schedule {
 	r.mtx.RLock()
 	defer r.mtx.RUnlock()
 
@@ -85,10 +85,10 @@ func NewStatsRepo() *statsRepo {
 func (r *statsRepo) Store(stat *action.Stat) error {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
-	if _, ok := r.stats[stat.ActionRegID]; !ok {
-		r.stats[stat.ActionRegID] = make([]*action.Stat, 0)
+	if _, ok := r.stats[stat.ActionID]; !ok {
+		r.stats[stat.ActionID] = make([]*action.Stat, 0)
 	}
-	r.stats[stat.ActionRegID] = append(r.stats[stat.ActionRegID], stat)
+	r.stats[stat.ActionID] = append(r.stats[stat.ActionID], stat)
 
 	return nil
 }
