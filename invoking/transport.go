@@ -3,7 +3,6 @@ package invoking
 import (
 	"context"
 	"encoding/json"
-	"github.com/zenazn/goji/web"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
@@ -17,7 +16,7 @@ type invokeRequest map[string]interface{}
 
 
 
-func MakeHandler(srv Service) {
+func MakeHandler(srv Service) http.Handler {
 	r := httprouter.New()
 
 	server := ctrlhttp.NewServer(
@@ -26,13 +25,14 @@ func MakeHandler(srv Service) {
 		encodeInvokeResponse,
 	)
 
-	r.Handler(http.MethodPost, "/action/:name", server)
+	r.Handler(http.MethodPost, "/invoking/v1/action/:name", server)
 
+	return r
 }
 
 
 func decodeInvokeRequest(_ context.Context, r *http.Request) (interface{}, error){
-	var params map[string]interface{}
+	var params invokeRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
 		return nil, err

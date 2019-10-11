@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/oklog/ulid"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/rpc"
 	"os"
 	"os/exec"
@@ -47,6 +49,17 @@ func (ap *ActionProvider) ActionExists(name string) bool {
 	}
 
 	return true
+}
+
+func (ap ActionProvider) EncodePayload(params map[string]interface{}) []byte {
+	invReq := make(map[string]interface{}, 0)
+
+	encParams, _ := json.Marshal(params)
+	invReq["payload"] = encParams
+
+	buf, _ := json.Marshal(invReq)
+
+	return buf
 }
 
 func (ap *ActionProvider) ExecuteAction(name string, payload []byte, env []string) interface{} {
@@ -91,7 +104,7 @@ func (ap *ActionProvider) ExecuteAction(name string, payload []byte, env []strin
 		}
 	}()
 
-	log.Println("[ctrl]", "starting")
+	log.Println("[ctrl]", "starting", "action", name)
 	result, err := pod.executeRPC(pod.sockPath, payload)
 
 
@@ -112,7 +125,7 @@ type executor struct {
 }
 
 func newExecuter(name string, stack string) *executor {
-	id := GenULID()
+	id := genULID()
 	actionPath := ctrlFS.BuildActionPath(name)
 	return &executor{
 		ID: id,
@@ -166,4 +179,15 @@ func connectToRPC(fd string) (*rpc.Client, error) {
 
 	return c, nil
 
+}
+
+func genULID() string {
+	t := time.Now()
+	entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
+	id, err := ulid.New(ulid.Timestamp(t), entropy)
+	if err != nil {
+
+	}
+
+	return fmt.Sprintf("%s", id)
 }
