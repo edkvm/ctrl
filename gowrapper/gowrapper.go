@@ -46,22 +46,28 @@ func (ac *Action) Invoke(input []byte, out *[]byte) error {
 	// Grab first Param
 	paramType := handlerType.In(0)
 
-	// Create the param
+	// Create the param pointer
 	ptrValue := reflect.New(paramType)
 
+	// Get concrete value
 	pValue := ptrValue.Interface()
 
+	// Decode into value
 	err = json.Unmarshal(req.Payload, pValue)
 	if err != nil {
 		return err
 	}
 
-
+	// Build param for function with concrete value
 	in := []reflect.Value{ptrValue.Elem()}
+
+	// Get the method
 	m := reflect.ValueOf(ac.handler)
 
+	// Invoke method
 	actionRes := m.Call(in)
 
+	// Encode result
 	encoded, err := json.Marshal(actionRes[0].Interface())
 
 	resp := &InvokeRes{
