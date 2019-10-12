@@ -9,41 +9,43 @@ import (
 	ctrlFS "github.com/edkvm/ctrl/fs"
 )
 
-
 var ErrMissingStats = errors.New("no stats for action")
-
-type RegID string
-
-type LocalePath string
 
 type ActionRepo interface {
 	FindAll() []*Action
 }
 
+type Codename string
+
+type Code struct {
+	Name        string
+	Description string
+	Author      string
+	Keywords    string
+	Version     string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
 type Action struct {
-	ID        RegID
-	Name      string
-	Path      LocalePath
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	configPath string
-	paramsPath string
+	CodeID      Codename
+	Name        string
+	createdAt   time.Time
+	updatedAt   time.Time
+	configPath  string
+	paramsPath  string
 }
 
 func NewAction(name string) *Action {
 	actionPath := ctrlFS.BuildActionPath(name)
 	return &Action{
-		Name:     name,
-		configPath:  fmt.Sprintf("%s/config.json", actionPath),
-		paramsPath:  fmt.Sprintf("%s/params.json", actionPath),
+		Name:       name,
+		configPath: fmt.Sprintf("%s/config.json", actionPath),
+		paramsPath: fmt.Sprintf("%s/params.json", actionPath),
 	}
 }
 
-type Stat struct {
-	ID          string
-	ActionID 	RegID
-	Duration    float32
-}
+
 
 func (fr *Action) ParamsToJSON(args []string) map[string]interface{} {
 	paramDef := ctrlFS.ReadFile(fr.paramsPath)
@@ -77,15 +79,4 @@ func (fr *Action) BuildEnv() []string {
 	}
 
 	return env
-}
-
-func (fr *Action) EncodePayload(params map[string]interface{}) []byte {
-	invReq := make(map[string]interface{}, 0)
-
-	encParams, _ := json.Marshal(params)
-	invReq["payload"] = encParams
-
-	buf, _ := json.Marshal(invReq)
-
-	return buf
 }

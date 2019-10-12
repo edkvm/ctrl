@@ -1,6 +1,9 @@
 package invoking
 
-import "github.com/edkvm/ctrl/action"
+import (
+	"github.com/edkvm/ctrl/action"
+	"time"
+)
 
 type Service interface {
 	RunAction(name string, params map[string]interface{}) (interface{}, error)
@@ -10,13 +13,15 @@ type Service interface {
 type service struct {
 	actionRepo action.ActionRepo
 	schedRepo action.ScheduleRepo
+	statsRepo action.StatsRepo
 	provider *action.ActionProvider
 }
 
-func NewService(actRepo action.ActionRepo, schedRepo action.ScheduleRepo, provider *action.ActionProvider) *service {
+func NewService(actRepo action.ActionRepo, schedRepo action.ScheduleRepo, statsRepo action.StatsRepo, provider *action.ActionProvider) *service {
 	return &service{
 		actionRepo: actRepo,
 		schedRepo: schedRepo,
+		statsRepo: statsRepo,
 		provider: provider,
 	}
 }
@@ -26,7 +31,16 @@ func (s *service) ScheduleAction(name string, params map[string]interface{}) (in
 }
 
 func (s *service) RunAction(name string, params map[string]interface{}) (interface{}, error) {
+	defer func(name string, start time.Time){
 
+		stat := &action.Stat{
+			ActionName: name,
+			Start: start,
+			End: time.Now(),
+			Status: true,
+		}
+		s.statsRepo.Store(stat)
+	}(name, time.Now())
 
 	ac := action.NewAction(name)
 
