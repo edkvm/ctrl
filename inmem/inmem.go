@@ -26,7 +26,7 @@ type scheduleRepo struct {
 	triggers map[action.ScheduleID]*action.Schedule
 }
 
-func NewTriggerRepo() *scheduleRepo {
+func NewScheduleRepo() *scheduleRepo {
 	return &scheduleRepo{
 		triggers: make(map[action.ScheduleID]*action.Schedule, 0),
 	}
@@ -54,6 +54,20 @@ func (r *scheduleRepo) FindNext(dur time.Duration) *action.Schedule {
 	}
 
 	return item
+}
+
+func (r *scheduleRepo) FindAllByAction(name string) []*action.Schedule {
+	r.mtx.RLock()
+	defer r.mtx.RUnlock()
+
+	items := make([]*action.Schedule, 0, len(r.triggers))
+	for _, val := range r.triggers {
+		if val.Action == name {
+			items = append(items, val)
+		}
+	}
+
+	return items
 }
 
 func (r *scheduleRepo) FindAllByTime(time time.Time) []*action.Schedule {
