@@ -3,6 +3,7 @@ package administrating
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -14,18 +15,26 @@ import (
 func MakeHandler(srv Service) http.Handler {
 	r := httprouter.New()
 
-	server := ctrlhttp.NewServer(
-		makeScheduleEndpoint(srv),
+	createScheduleHandler := ctrlhttp.NewServer(
+		makeCreateScheduleEndpoint(srv),
 		decodeScheduleRequest,
-		encodeInvokeResponse,
+		encodeResponse,
 	)
 
-	r.Handler(http.MethodPost, "/admin/v1/schedule", server)
+	listScheduleHandler := ctrlhttp.NewServer(
+		makeListScheduleEndpoint(srv),
+		decodeListScheduleRequest,
+		encodeResponse,
+	)
+
+	r.Handler(http.MethodPost, "/admin/v1/schedule", createScheduleHandler)
+	r.Handler(http.MethodGet, "/admin/v1/schedule/:name", listScheduleHandler)
 
 	return r
 }
 
 func decodeScheduleRequest(_ context.Context, r *http.Request) (interface{}, error) {
+	log.Println("dec")
 	var body struct {
 		Action    string `json:"action"`
 		Start     time.Time `json:"start"`
@@ -45,8 +54,22 @@ func decodeScheduleRequest(_ context.Context, r *http.Request) (interface{}, err
 	}, nil
 }
 
-func encodeInvokeResponse(ctx context.Context, w http.ResponseWriter, resp interface{}) error {
-	return json.NewEncoder(w).Encode(resp)
+func decodeListScheduleRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	params := httprouter.ParamsFromContext(ctx)
+	name := params.ByName("name")
+
+	return name, nil
 }
+
+func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	//if e, ok := response.(errorer); ok && e.error() != nil {
+	//	encodeError(ctx, e.error(), w)
+	//	return nil
+	//}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	return json.NewEncoder(w).Encode(response)
+}
+
+
 
 
