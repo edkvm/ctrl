@@ -46,7 +46,7 @@ func (r *scheduleRepo) FindNext(dur time.Duration) *action.Schedule {
 	var item *action.Schedule
 	minDur := dur
 	for _, val := range r.triggers {
-		curDur := val.When.Sub(time.Now())
+		curDur := val.Start.Sub(time.Now())
 		if curDur < minDur {
 			minDur = curDur
 			item = val
@@ -62,7 +62,7 @@ func (r *scheduleRepo) FindAllByTime(time time.Time) []*action.Schedule {
 
 	items := make([]*action.Schedule, 0, len(r.triggers))
 	for _, val := range r.triggers {
-		if val.When == time {
+		if val.Start == time {
 			items = append(items, val)
 		}
 	}
@@ -72,36 +72,47 @@ func (r *scheduleRepo) FindAllByTime(time time.Time) []*action.Schedule {
 
 type statsRepo struct {
 	mtx sync.RWMutex
-	stats map[action.RegID][]*action.Stat
+	stats map[string]*action.Stat
 }
-
 
 func NewStatsRepo() *statsRepo {
 	return &statsRepo{
-		stats: make(map[action.RegID][]*action.Stat, 0),
+		stats: make(map[string]*action.Stat, 0),
 	}
 }
 
 func (r *statsRepo) Store(stat *action.Stat) error {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
-	if _, ok := r.stats[stat.ActionID]; !ok {
-		r.stats[stat.ActionID] = make([]*action.Stat, 0)
-	}
-	r.stats[stat.ActionID] = append(r.stats[stat.ActionID], stat)
+
+	r.stats[stat.ID] = stat
 
 	return nil
 }
 
-func (r *statsRepo) FindLast(actionID action.RegID) (*action.Stat, error) {
-	r.mtx.RLock()
-	defer r.mtx.RUnlock()
-	if list, ok := r.stats[actionID]; !ok {
-		last := len(list) - 1
-		return list[last], nil
+func (r *statsRepo) FindAll() []*action.Stat {
+
+	stats := make([]*action.Stat, 0, len(r.stats))
+
+	for _, v := range r.stats {
+		stats = append(stats, v)
 	}
 
-	return nil, action.ErrMissingStats
+	return stats
+}
+
+func (r *statsRepo) FindByID(actionID string) ([]*action.Stat, error) {
+	r.mtx.RLock()
+	defer r.mtx.RUnlock()
+	list := make([]*action.Stat, 0)
+
+	for _, val := range r.stats {
+		if val.ActionName == actionID {
+			list = append(list, val)
+		}
+	}
+
+	return list, action.ErrMissingStats
 }
 
 
