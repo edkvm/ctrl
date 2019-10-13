@@ -1,6 +1,9 @@
 package action
 
-import "time"
+import (
+	"time"
+	ctrlID "github.com/edkvm/ctrl/pkg/id"
+)
 
 type Stat struct {
 	ID     string
@@ -12,7 +15,7 @@ type Stat struct {
 
 func NewStat(name string, start, end time.Time, status bool) *Stat{
 	return &Stat{
-		ID: genULID(),
+		ID: ctrlID.GenULID(),
 		Action: name,
 		Start:  start,
 		End:    time.Now(),

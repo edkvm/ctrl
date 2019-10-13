@@ -2,23 +2,24 @@ package invoking
 
 import (
 	"github.com/edkvm/ctrl/action"
+	"github.com/edkvm/ctrl/trigger"
 	"time"
 )
 
 type Service interface {
 	RunAction(name string, params map[string]interface{}) (interface{}, error)
-	AddActionSchedule(name string, schedID action.ScheduleID) error
+	AddActionSchedule(name string, schedID trigger.ScheduleID) error
 }
 
 type service struct {
-	actionRepo action.ActionRepo
-	schedRepo action.ScheduleRepo
-	statsRepo action.StatsRepo
+	actionRepo  action.ActionRepo
+	schedRepo   trigger.ScheduleRepo
+	statsRepo   action.StatsRepo
 	actionTimer *action.ActionTimer
-	provider *action.ActionProvider
+	provider    *action.ActionProvider
 }
 
-func NewService(actRepo action.ActionRepo, schedRepo action.ScheduleRepo, statsRepo action.StatsRepo, actionTimer *action.ActionTimer, provider *action.ActionProvider) *service {
+func NewService(actRepo action.ActionRepo, schedRepo trigger.ScheduleRepo, statsRepo action.StatsRepo, actionTimer *action.ActionTimer, provider *action.ActionProvider) *service {
 	return &service{
 		actionRepo: actRepo,
 		schedRepo: schedRepo,
@@ -28,7 +29,7 @@ func NewService(actRepo action.ActionRepo, schedRepo action.ScheduleRepo, statsR
 	}
 }
 
-func (s *service) AddActionSchedule(name string, schedID action.ScheduleID) error {
+func (s *service) AddActionSchedule(name string, schedID trigger.ScheduleID) error {
 	sched, _ := s.schedRepo.Find(schedID)
 	s.actionTimer.AddSchedule(sched, s.RunAction)
 
