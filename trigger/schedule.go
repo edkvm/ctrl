@@ -1,6 +1,12 @@
-package action
+package trigger
 
-import "time"
+import (
+
+	"time"
+
+	"github.com/edkvm/ctrl/action"
+	ctrlID "github.com/edkvm/ctrl/pkg/id"
+)
 
 type ScheduleID string
 
@@ -10,7 +16,7 @@ type Schedule struct {
 	Start     time.Time
 	Recurring bool
 	Interval  int
-	Params    ActionParams
+	Params    action.ActionParams
 }
 
 type SchedulingEvent struct {
@@ -28,16 +34,16 @@ type ScheduleRepo interface {
 
 func NewSchedule(action string, start time.Time) *Schedule {
 	return &Schedule{
-		ID:     ScheduleID(genULID()),
+		ID:     ScheduleID(ctrlID.GenULID()),
 		Action: action,
 		Start:  start,
 		Recurring: false,
 	}
 }
 
-func NewRecurringSchedule(action string, start time.Time, interval int, params ActionParams) *Schedule {
+func NewRecurringSchedule(action string, start time.Time, interval int, params action.ActionParams) *Schedule {
 	return &Schedule{
-		ID:     ScheduleID(genULID()),
+		ID:     ScheduleID(ctrlID.GenULID()),
 		Action: action,
 		Start:  start,
 		Recurring: true,
