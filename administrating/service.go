@@ -2,10 +2,10 @@ package administrating
 
 import (
 	"fmt"
-	"github.com/edkvm/ctrl/action"
-	"github.com/edkvm/ctrl/invoking"
-	"github.com/edkvm/ctrl/trigger"
 	"time"
+
+	"github.com/edkvm/ctrl/action"
+	"github.com/edkvm/ctrl/trigger"
 )
 
 type EventHandler interface {
@@ -16,6 +16,7 @@ type Service interface {
 	ListSchedule(name string) ([]*trigger.Schedule, error)
 	ScheduleAction(name string, start time.Time) (trigger.ScheduleID, error)
 	ScheduleRecurringAction(name string, interval int, params action.ActionParams) (trigger.ScheduleID, error)
+	ToggleSchedule(id trigger.ScheduleID) error
 
 	ListStats(name string) ([]*action.Stat, error)
 }
@@ -65,19 +66,30 @@ func (s *service) ScheduleRecurringAction(name string, interval int, params acti
 	return sched.ID, nil
 }
 
+func (s *service) ToggleSchedule(id trigger.ScheduleID) error {
+	sched, err := s.schedRepo.Find(id)
+	if err != nil {
+		return err
+	}
+
+	sched.Active = !sched.Active
+
+	return nil
+}
+
 type schedulingEventHandler struct {
-	InvokingService invoking.Service
+	HandlerFunc func (name string, schedID trigger.ScheduleID) error
 }
 
 // TODO: Reduce dependency with other service by using the func only without the service and
 //       create the func in main with options to use http, for distribution.
 func (h *schedulingEventHandler) ActionWasScheduled(event trigger.SchedulingEvent) {
-	h.InvokingService.AddActionSchedule(event.Action, event.ScheduleID)
+	h.HandlerFunc(event.Action, event.ScheduleID)
 }
 
-func NewEventHandler(s invoking.Service) EventHandler {
+func NewEventHandler(h func (name string, schedID trigger.ScheduleID) error) EventHandler {
 	return &schedulingEventHandler{
-		InvokingService: s,
+		HandlerFunc: h,
 	}
 }
 
