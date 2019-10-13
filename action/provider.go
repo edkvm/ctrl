@@ -14,6 +14,7 @@ import (
 	"time"
 
 	ctrlFS "github.com/edkvm/ctrl/fs"
+	ctrlID "github.com/edkvm/ctrl/pkg/id"
 )
 
 type ActionProvider struct {
@@ -125,7 +126,7 @@ type executor struct {
 }
 
 func newExecuter(name string, stack string) *executor {
-	id := genULID()
+	id := ctrlID.GenULID()
 	actionPath := ctrlFS.BuildActionPath(name)
 	return &executor{
 		ID: id,
@@ -181,13 +182,3 @@ func connectToRPC(fd string) (*rpc.Client, error) {
 
 }
 
-func genULID() string {
-	t := time.Now()
-	entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
-	id, err := ulid.New(ulid.Timestamp(t), entropy)
-	if err != nil {
-
-	}
-
-	return fmt.Sprintf("%s", id)
-}
