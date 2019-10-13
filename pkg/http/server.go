@@ -47,7 +47,6 @@ func (s server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 }
 
 func ErrorEncoder(_ context.Context, err error, w http.ResponseWriter) {

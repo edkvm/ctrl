@@ -7,5 +7,4 @@ require (
 	github.com/oklog/ulid v1.3.1
 	github.com/rakyll/statik v0.1.6
 	github.com/urfave/cli v1.20.0
-	github.com/zenazn/goji v0.9.0
 )
