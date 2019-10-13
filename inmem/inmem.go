@@ -1,6 +1,7 @@
 package inmem
 
 import (
+	"fmt"
 	"github.com/edkvm/ctrl/action"
 	"sync"
 	"time"
@@ -56,6 +57,17 @@ func (r *scheduleRepo) FindNext(dur time.Duration) *action.Schedule {
 	return item
 }
 
+func (r *scheduleRepo) Find(id action.ScheduleID) (*action.Schedule, error) {
+	r.mtx.RLock()
+	defer r.mtx.RUnlock()
+
+	if val, ok := r.triggers[id]; ok {
+		return val, nil
+	}
+
+	return nil, fmt.Errorf("not found")
+}
+
 func (r *scheduleRepo) FindAllByAction(name string) []*action.Schedule {
 	r.mtx.RLock()
 	defer r.mtx.RUnlock()
@@ -83,6 +95,7 @@ func (r *scheduleRepo) FindAllByTime(time time.Time) []*action.Schedule {
 
 	return items
 }
+
 
 type statsRepo struct {
 	mtx sync.RWMutex
@@ -115,18 +128,18 @@ func (r *statsRepo) FindAll() []*action.Stat {
 	return stats
 }
 
-func (r *statsRepo) FindByID(actionID string) ([]*action.Stat, error) {
+func (r *statsRepo) FindByAction(actionID string) []*action.Stat {
 	r.mtx.RLock()
 	defer r.mtx.RUnlock()
 	list := make([]*action.Stat, 0)
 
 	for _, val := range r.stats {
-		if val.ActionName == actionID {
+		if val.Action == actionID {
 			list = append(list, val)
 		}
 	}
 
-	return list, action.ErrMissingStats
+	return list
 }
 
 

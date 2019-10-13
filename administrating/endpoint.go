@@ -2,6 +2,7 @@ package administrating
 
 import (
 	"context"
+	"github.com/edkvm/ctrl/action"
 	"github.com/edkvm/ctrl/pkg/endpoint"
 	"time"
 )
@@ -11,10 +12,11 @@ type scheduleRequest struct {
 	Start     time.Time
 	Recurring bool
 	Interval  int
+	Params    map[string]interface{}
 }
 
 type scheduleResponse struct {
-	ID 		string      `json:"id"`
+	ID        string    `json:"id"`
 	Action    string    `json:"action,omitempty"`
 	Start     time.Time `json:"start,omitempty"`
 	Recurring bool      `json:"recurring"`
@@ -24,7 +26,7 @@ type scheduleResponse struct {
 func makeCreateScheduleEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
 		schedReq := req.(scheduleRequest)
-		result, err := s.ScheduleRecurringAction(schedReq.Action, schedReq.Interval)
+		result, err := s.ScheduleRecurringAction(schedReq.Action, schedReq.Interval, action.ActionParams(schedReq.Params))
 		if err != nil {
 			return nil, err
 		}
@@ -45,7 +47,7 @@ func makeListScheduleEndpoint(s Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		list := make([]scheduleResponse,  0, len(result))
+		list := make([]scheduleResponse, 0, len(result))
 		for _, val := range result {
 			list = append(list, scheduleResponse{
 				string(val.ID),
@@ -57,5 +59,51 @@ func makeListScheduleEndpoint(s Service) endpoint.Endpoint {
 		}
 
 		return listSchedule{Schedules: list}, nil
+	}
+}
+
+type Stat struct {
+	ID         string
+	ActionName string
+	Start      time.Time
+	End        time.Time
+	Status     bool
+}
+
+type statResponse struct {
+	ID       string    `json:"id"`
+	Action   string    `json:"action,omitempty"`
+	Start    time.Time `json:"start"`
+	End      time.Time `json:"end,omitempty"`
+	Duration float32   `json:"duration"`
+	Status   bool      `json:"status,omitempty"`
+}
+
+type listStats struct {
+	Stats []statResponse `json:"schedules,omitempty"`
+}
+
+func makeListStatsEndpoint(s Service) endpoint.Endpoint {
+	return func(ctx context.Context, req interface{}) (interface{}, error) {
+		name := req.(string)
+
+		result, err := s.ListStats(name)
+		if err != nil {
+			return nil, err
+		}
+
+		list := make([]statResponse, 0, len(result))
+		for _, val := range result {
+			list = append(list, statResponse{
+				string(val.ID),
+				val.Action,
+				val.Start,
+				val.End,
+				float32(float64(val.End.Sub(val.Start)) / float64(time.Second)),
+				val.Status,
+			})
+		}
+
+		return listStats{Stats: list}, nil
 	}
 }
