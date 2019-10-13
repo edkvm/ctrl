@@ -1,13 +1,11 @@
-package action
+package execute
 
 import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/oklog/ulid"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net/rpc"
 	"os"
 	"os/exec"
