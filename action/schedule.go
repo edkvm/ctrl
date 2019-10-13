@@ -10,13 +10,20 @@ type Schedule struct {
 	Start     time.Time
 	Recurring bool
 	Interval  int
+	Params    ActionParams
+}
+
+type SchedulingEvent struct {
+	ScheduleID ScheduleID
+	Action string
 }
 
 type ScheduleRepo interface {
 	Store(t *Schedule) error
 	FindNext(dur time.Duration) *Schedule
-	FindAllByAction(name string) []*Schedule
+	Find(id ScheduleID) (*Schedule, error)
 	FindAllByTime(time time.Time) []*Schedule
+	FindAllByAction(name string) []*Schedule
 }
 
 func NewSchedule(action string, start time.Time) *Schedule {
@@ -28,13 +35,14 @@ func NewSchedule(action string, start time.Time) *Schedule {
 	}
 }
 
-func NewRecurringSchedule(action string, start time.Time, interval int) *Schedule {
+func NewRecurringSchedule(action string, start time.Time, interval int, params ActionParams) *Schedule {
 	return &Schedule{
 		ID:     ScheduleID(genULID()),
 		Action: action,
 		Start:  start,
 		Recurring: true,
 		Interval: interval,
+		Params: params,
 	}
 }
 
