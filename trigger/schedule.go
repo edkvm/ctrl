@@ -1,10 +1,10 @@
 package trigger
 
 import (
-
 	"time"
 
 	"github.com/edkvm/ctrl/action"
+
 	ctrlID "github.com/edkvm/ctrl/pkg/id"
 )
 
@@ -16,6 +16,7 @@ type Schedule struct {
 	Start     time.Time
 	Recurring bool
 	Interval  int
+	Active	  bool
 	Params    action.ActionParams
 }
 

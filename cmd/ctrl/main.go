@@ -25,7 +25,7 @@ func main() {
 	mux.Handle("/invoking/v1/", invokeHandler)
 
 
-	adminService := administrating.NewService(actionRepo, schedRepo, statsRepo, administrating.NewEventHandler(invkService))
+	adminService := administrating.NewService(actionRepo, schedRepo, statsRepo, administrating.NewEventHandler(invkService.AddActionSchedule))
 	adminHandler := administrating.MakeHandler(adminService)
 	mux.Handle("/admin/v1/", adminHandler)
 
