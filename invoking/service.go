@@ -38,12 +38,12 @@ func (s *service) AddActionSchedule(name string, schedID trigger.ScheduleID) err
 }
 
 func (s *service) RunAction(name string, params map[string]interface{}) (interface{}, error) {
-	defer func(name string, start time.Time){
-
-		stat := action.NewStat(name, start, time.Now(), true)
+	stat := action.NewStat(name, time.Now(), action.Running)
+	defer func(stat *action.Stat){
 		s.statsRepo.Store(stat)
-	}(name, time.Now())
+	}(stat)
 
+	// TODO: Add Error handeling
 	ac := action.NewAction(name)
 
 	env := ac.BuildEnv()
