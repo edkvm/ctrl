@@ -3,15 +3,25 @@ package action
 import "time"
 
 type Stat struct {
-	ID         string
-	ActionName string
-	Start      time.Time
-	End        time.Time
-	Status     bool
+	ID     string
+	Action string
+	Start  time.Time
+	End    time.Time
+	Status bool
+}
+
+func NewStat(name string, start, end time.Time, status bool) *Stat{
+	return &Stat{
+		ID: genULID(),
+		Action: name,
+		Start:  start,
+		End:    time.Now(),
+		Status: status,
+	}
 }
 
 type StatsRepo interface {
 	Store(stat *Stat) error
 	FindAll() []*Stat
-	FindByID(actionID string) ([]*Stat, error)
+	FindByAction(actionID string) []*Stat
 }

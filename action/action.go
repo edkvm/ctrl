@@ -36,6 +36,8 @@ type Action struct {
 	paramsPath  string
 }
 
+type ActionParams map[string]interface{}
+
 func NewAction(name string) *Action {
 	actionPath := ctrlFS.BuildActionPath(name)
 	return &Action{

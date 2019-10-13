@@ -106,7 +106,7 @@ func (ap *ActionProvider) ExecuteAction(name string, payload []byte, env []strin
 
 	log.Println("[ctrl]", "starting", "action", name)
 	result, err := pod.executeRPC(pod.sockPath, payload)
-
+	log.Println("[ctrl]", "finished", "action", name, "result", result)
 
 	cmd.Process.Kill()
 	if err := cmd.Wait(); err != nil {
