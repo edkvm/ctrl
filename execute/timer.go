@@ -1,10 +1,11 @@
-package action
+package execute
 
 import (
-	"github.com/edkvm/ctrl/trigger"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/edkvm/ctrl/trigger"
 )
 
 type ActionTimer struct {
