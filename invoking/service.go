@@ -2,6 +2,7 @@ package invoking
 
 import (
 	"github.com/edkvm/ctrl/action"
+	"github.com/edkvm/ctrl/execute"
 	"github.com/edkvm/ctrl/trigger"
 	"time"
 )
@@ -15,11 +16,11 @@ type service struct {
 	actionRepo  action.ActionRepo
 	schedRepo   trigger.ScheduleRepo
 	statsRepo   action.StatsRepo
-	actionTimer *action.ActionTimer
-	provider    *action.ActionProvider
+	actionTimer *execute.ActionTimer
+	provider    *execute.ActionProvider
 }
 
-func NewService(actRepo action.ActionRepo, schedRepo trigger.ScheduleRepo, statsRepo action.StatsRepo, actionTimer *action.ActionTimer, provider *action.ActionProvider) *service {
+func NewService(actRepo action.ActionRepo, schedRepo trigger.ScheduleRepo, statsRepo action.StatsRepo, actionTimer *execute.ActionTimer, provider *execute.ActionProvider) *service {
 	return &service{
 		actionRepo: actRepo,
 		schedRepo: schedRepo,
