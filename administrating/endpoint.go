@@ -3,8 +3,6 @@ package administrating
 import (
 	"context"
 	"github.com/edkvm/ctrl/pkg/endpoint"
-	"log"
-
 	"time"
 )
 
@@ -25,11 +23,10 @@ type scheduleResponse struct {
 
 func makeCreateScheduleEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
-		log.Println("dd")
 		schedReq := req.(scheduleRequest)
 		result, err := s.ScheduleRecurringAction(schedReq.Action, schedReq.Interval)
 		if err != nil {
-
+			return nil, err
 		}
 		return result, nil
 	}
@@ -45,7 +42,7 @@ func makeListScheduleEndpoint(s Service) endpoint.Endpoint {
 
 		result, err := s.ListSchedule(name)
 		if err != nil {
-
+			return nil, err
 		}
 
 		list := make([]scheduleResponse,  0, len(result))
