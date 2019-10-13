@@ -3,6 +3,7 @@ package inmem
 import (
 	"fmt"
 	"github.com/edkvm/ctrl/action"
+	"github.com/edkvm/ctrl/trigger"
 	"sync"
 	"time"
 )
@@ -24,27 +25,27 @@ func (r *actionRepo) FindAll() []*action.Action {
 
 type scheduleRepo struct {
 	mtx sync.RWMutex
-	triggers map[action.ScheduleID]*action.Schedule
+	triggers map[trigger.ScheduleID]*trigger.Schedule
 }
 
 func NewScheduleRepo() *scheduleRepo {
 	return &scheduleRepo{
-		triggers: make(map[action.ScheduleID]*action.Schedule, 0),
+		triggers: make(map[trigger.ScheduleID]*trigger.Schedule, 0),
 	}
 }
 
-func (r *scheduleRepo) Store(t *action.Schedule) error {
+func (r *scheduleRepo) Store(t *trigger.Schedule) error {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 	r.triggers[t.ID] = t
 	return nil
 }
 
-func (r *scheduleRepo) FindNext(dur time.Duration) *action.Schedule {
+func (r *scheduleRepo) FindNext(dur time.Duration) *trigger.Schedule {
 	r.mtx.RLock()
 	defer r.mtx.RUnlock()
 
-	var item *action.Schedule
+	var item *trigger.Schedule
 	minDur := dur
 	for _, val := range r.triggers {
 		curDur := val.Start.Sub(time.Now())
@@ -57,7 +58,7 @@ func (r *scheduleRepo) FindNext(dur time.Duration) *action.Schedule {
 	return item
 }
 
-func (r *scheduleRepo) Find(id action.ScheduleID) (*action.Schedule, error) {
+func (r *scheduleRepo) Find(id trigger.ScheduleID) (*trigger.Schedule, error) {
 	r.mtx.RLock()
 	defer r.mtx.RUnlock()
 
@@ -68,11 +69,11 @@ func (r *scheduleRepo) Find(id action.ScheduleID) (*action.Schedule, error) {
 	return nil, fmt.Errorf("not found")
 }
 
-func (r *scheduleRepo) FindAllByAction(name string) []*action.Schedule {
+func (r *scheduleRepo) FindAllByAction(name string) []*trigger.Schedule {
 	r.mtx.RLock()
 	defer r.mtx.RUnlock()
 
-	items := make([]*action.Schedule, 0, len(r.triggers))
+	items := make([]*trigger.Schedule, 0, len(r.triggers))
 	for _, val := range r.triggers {
 		if val.Action == name {
 			items = append(items, val)
@@ -82,11 +83,11 @@ func (r *scheduleRepo) FindAllByAction(name string) []*action.Schedule {
 	return items
 }
 
-func (r *scheduleRepo) FindAllByTime(time time.Time) []*action.Schedule {
+func (r *scheduleRepo) FindAllByTime(time time.Time) []*trigger.Schedule {
 	r.mtx.RLock()
 	defer r.mtx.RUnlock()
 
-	items := make([]*action.Schedule, 0, len(r.triggers))
+	items := make([]*trigger.Schedule, 0, len(r.triggers))
 	for _, val := range r.triggers {
 		if val.Start == time {
 			items = append(items, val)

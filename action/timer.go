@@ -1,6 +1,7 @@
 package action
 
 import (
+	"github.com/edkvm/ctrl/trigger"
 	"log"
 	"sync"
 	"time"
@@ -8,16 +9,16 @@ import (
 
 type ActionTimer struct {
 	mtx sync.RWMutex
-	scheduled map[ScheduleID]*time.Timer
+	scheduled map[trigger.ScheduleID]*time.Timer
 }
 
 func NewActionTimer() *ActionTimer {
 	return &ActionTimer{
-		scheduled: make(map[ScheduleID]*time.Timer, 0),
+		scheduled: make(map[trigger.ScheduleID]*time.Timer, 0),
 	}
 }
 
-func (at *ActionTimer) RemoveSchedule(id ScheduleID) {
+func (at *ActionTimer) RemoveSchedule(id trigger.ScheduleID) {
 	at.mtx.Lock()
 	defer at.mtx.Unlock()
 
@@ -28,7 +29,7 @@ func (at *ActionTimer) RemoveSchedule(id ScheduleID) {
 	delete(at.scheduled, id)
 }
 
-func (at *ActionTimer) AddSchedule (sched *Schedule, fn func(name string, params map[string]interface{}) (interface{}, error)) error {
+func (at *ActionTimer) AddSchedule (sched *trigger.Schedule, fn func(name string, params map[string]interface{}) (interface{}, error)) error {
 	log.Println("add sched")
 	t := time.AfterFunc(time.Duration(sched.Interval) * time.Second, func() {
 		if sched.Recurring {
