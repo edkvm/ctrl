@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/edkvm/ctrl/action"
 	"github.com/edkvm/ctrl/pkg/endpoint"
+	"github.com/edkvm/ctrl/trigger"
 	"time"
 )
 
@@ -21,6 +22,7 @@ type scheduleResponse struct {
 	Start     time.Time `json:"start,omitempty"`
 	Recurring bool      `json:"recurring"`
 	Interval  int       `json:"interval,omitempty"`
+	Enabled   bool      `json:"enabled"`
 }
 
 func makeCreateScheduleEndpoint(s Service) endpoint.Endpoint {
@@ -31,6 +33,23 @@ func makeCreateScheduleEndpoint(s Service) endpoint.Endpoint {
 			return nil, err
 		}
 		return result, nil
+	}
+}
+
+type scheduleToggleReq struct {
+	ID        string
+	Enabled   bool
+}
+
+func makeToggleScheduleEndpoint(s Service) endpoint.Endpoint {
+	return func(ctx context.Context, req interface{}) (interface{}, error) {
+		schedReq := req.(scheduleToggleReq)
+		err := s.ToggleSchedule(trigger.ScheduleID(schedReq.ID), schedReq.Enabled)
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, nil
 	}
 }
 
@@ -55,6 +74,7 @@ func makeListScheduleEndpoint(s Service) endpoint.Endpoint {
 				val.Start,
 				val.Recurring,
 				val.Interval,
+				val.Enabled,
 			})
 		}
 
@@ -76,7 +96,7 @@ type statResponse struct {
 	Start    time.Time `json:"start"`
 	End      time.Time `json:"end,omitempty"`
 	Duration float32   `json:"duration"`
-	Status   bool      `json:"status,omitempty"`
+	Status   string      `json:"status,omitempty"`
 }
 
 type listStats struct {
@@ -100,7 +120,7 @@ func makeListStatsEndpoint(s Service) endpoint.Endpoint {
 				val.Start,
 				val.End,
 				float32(float64(val.End.Sub(val.Start)) / float64(time.Second)),
-				val.Status,
+				string(val.Status),
 			})
 		}
 
