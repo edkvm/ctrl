@@ -13,26 +13,35 @@ type Service interface {
 }
 
 type service struct {
-	actionRepo  action.ActionRepo
-	schedRepo   trigger.ScheduleRepo
-	statsRepo   action.StatsRepo
-	actionTimer *execute.ActionTimer
-	provider    *execute.ActionProvider
+	actionRepo   action.ActionRepo
+	scheduleRepo trigger.ScheduleRepo
+	statsRepo    action.StatsRepo
+	actionTimer  *execute.ActionTimer
+	provider     *execute.ActionProvider
 }
 
-func NewService(actRepo action.ActionRepo, schedRepo trigger.ScheduleRepo, statsRepo action.StatsRepo, actionTimer *execute.ActionTimer, provider *execute.ActionProvider) *service {
+func NewService(actRepo action.ActionRepo, scheduleRepo trigger.ScheduleRepo, statsRepo action.StatsRepo, actionTimer *execute.ActionTimer, provider *execute.ActionProvider) *service {
 	return &service{
-		actionRepo: actRepo,
-		schedRepo: schedRepo,
-		statsRepo: statsRepo,
-		actionTimer: actionTimer,
-		provider: provider,
+		actionRepo:   actRepo,
+		scheduleRepo: scheduleRepo,
+		statsRepo:    statsRepo,
+		actionTimer:  actionTimer,
+		provider:     provider,
 	}
 }
 
 func (s *service) AddActionSchedule(name string, schedID trigger.ScheduleID) error {
-	sched, _ := s.schedRepo.Find(schedID)
+	sched, _ := s.scheduleRepo.Find(schedID)
 	s.actionTimer.AddSchedule(sched, s.RunAction)
+
+	return nil
+}
+
+func (s *service) RemoveActionSchedule(name string, schedID trigger.ScheduleID) error {
+	sched, _ := s.scheduleRepo.Find(schedID)
+	if !sched.Enabled {
+		s.actionTimer.RemoveSchedule(sched.ID)
+	}
 
 	return nil
 }
