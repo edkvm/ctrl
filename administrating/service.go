@@ -9,14 +9,18 @@ import (
 )
 
 type EventHandler interface {
-	ActionWasScheduled(event trigger.SchedulingEvent)
+	ScheduleWasAdded(event trigger.SchedulingEvent)
+	ScheduleWasDisabled(event trigger.SchedulingEvent)
 }
+
+type HandlerFunc func (name string, schedID trigger.ScheduleID) error
 
 type Service interface {
 	ListSchedule(name string) ([]*trigger.Schedule, error)
 	ScheduleAction(name string, start time.Time) (trigger.ScheduleID, error)
 	ScheduleRecurringAction(name string, interval int, params action.ActionParams) (trigger.ScheduleID, error)
-	ToggleSchedule(id trigger.ScheduleID) error
+
+	ToggleSchedule(id trigger.ScheduleID, enabled bool) error
 
 	ListStats(name string) ([]*action.Stat, error)
 }
@@ -58,7 +62,7 @@ func (s *service) ScheduleRecurringAction(name string, interval int, params acti
 		return "", fmt.Errorf("could not save")
 	}
 
-	s.schedHandler.ActionWasScheduled(trigger.SchedulingEvent{
+	s.schedHandler.ScheduleWasAdded(trigger.SchedulingEvent{
 		Action: name,
 		ScheduleID: sched.ID,
 	})
@@ -66,30 +70,50 @@ func (s *service) ScheduleRecurringAction(name string, interval int, params acti
 	return sched.ID, nil
 }
 
-func (s *service) ToggleSchedule(id trigger.ScheduleID) error {
+func (s *service) ToggleSchedule(id trigger.ScheduleID, enabled bool) error {
 	sched, err := s.schedRepo.Find(id)
+	if err != nil {
+		// TODO add error for missing item
+		return err
+	}
+
+	sched.Enabled = !sched.Enabled
+
+	err = s.schedRepo.Store(sched)
 	if err != nil {
 		return err
 	}
 
-	sched.Active = !sched.Active
+	if sched.Enabled {
+
+	}
+
+	s.schedHandler.ScheduleWasDisabled(trigger.SchedulingEvent{
+		Action:     sched.Action,
+		ScheduleID: sched.ID,
+	})
 
 	return nil
 }
 
 type schedulingEventHandler struct {
-	HandlerFunc func (name string, schedID trigger.ScheduleID) error
+	ScheduleAddHandlerFunc func (name string, schedID trigger.ScheduleID) error
+	ScheduleDisableHandlerFunc func (name string, schedID trigger.ScheduleID) error
 }
 
-// TODO: Reduce dependency with other service by using the func only without the service and
-//       create the func in main with options to use http, for distribution.
-func (h *schedulingEventHandler) ActionWasScheduled(event trigger.SchedulingEvent) {
-	h.HandlerFunc(event.Action, event.ScheduleID)
+func (h *schedulingEventHandler) ScheduleWasAdded(event trigger.SchedulingEvent) {
+	h.ScheduleAddHandlerFunc(event.Action, event.ScheduleID)
 }
 
-func NewEventHandler(h func (name string, schedID trigger.ScheduleID) error) EventHandler {
+func (h *schedulingEventHandler) ScheduleWasDisabled(event trigger.SchedulingEvent) {
+	h.ScheduleDisableHandlerFunc(event.Action, event.ScheduleID)
+}
+
+
+func NewEventHandler(addHandlerFunc, disableHandlerFunc HandlerFunc) EventHandler {
 	return &schedulingEventHandler{
-		HandlerFunc: h,
+		ScheduleAddHandlerFunc: addHandlerFunc,
+		ScheduleDisableHandlerFunc: disableHandlerFunc,
 	}
 }
 

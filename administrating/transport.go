@@ -21,6 +21,12 @@ func MakeHandler(srv Service) http.Handler {
 		encodeResponse,
 	)
 
+	toggleScheduleHandler := ctrlhttp.NewServer(
+		makeToggleScheduleEndpoint(srv),
+		decodeToggleRequest,
+		encodeResponse,
+	)
+
 	listScheduleHandler := ctrlhttp.NewServer(
 		makeListScheduleEndpoint(srv),
 		decodeActionName,
@@ -34,6 +40,8 @@ func MakeHandler(srv Service) http.Handler {
 	)
 
 	r.Handler(http.MethodPost, "/admin/v1/schedule", createScheduleHandler)
+	r.Handler(http.MethodPatch, "/admin/v1/schedule/:id", toggleScheduleHandler)
+
 	r.Handler(http.MethodGet, "/admin/v1/schedule/:name", listScheduleHandler)
 	r.Handler(http.MethodGet, "/admin/v1/stats/:name", listStatsHandler)
 
@@ -61,6 +69,23 @@ func decodeScheduleRequest(_ context.Context, r *http.Request) (interface{}, err
 		Recurring: body.Recurring,
 		Interval: body.Interval,
 		Params: body.Params,
+	}, nil
+}
+
+func decodeToggleRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	params := httprouter.ParamsFromContext(ctx)
+	id := params.ByName("id")
+	var body struct {
+		Enabled bool `json:"recurring"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		return nil, err
+	}
+
+	return scheduleToggleReq{
+		ID: id,
+		Enabled: body.Enabled,
 	}, nil
 }
 

@@ -16,10 +16,11 @@ type Schedule struct {
 	Start     time.Time
 	Recurring bool
 	Interval  int
-	Active	  bool
+	Enabled   bool
 	Params    action.ActionParams
 }
 
+// TODO: Add Event Factory
 type SchedulingEvent struct {
 	ScheduleID ScheduleID
 	Action string
@@ -50,6 +51,7 @@ func NewRecurringSchedule(action string, start time.Time, interval int, params a
 		Recurring: true,
 		Interval: interval,
 		Params: params,
+		Enabled: true,
 	}
 }
 
