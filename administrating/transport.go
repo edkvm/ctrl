@@ -39,10 +39,28 @@ func MakeHandler(srv Service) http.Handler {
 		encodeResponse,
 	)
 
+	actionCreateHandler := ctrlhttp.NewServer(
+		makeActionCreateEndpoint(srv),
+		decodeActionName,
+		encodeResponse,
+	)
+
+	actionAddSecretHandler := ctrlhttp.NewServer(
+		makeActionCreateEndpoint(srv),
+		decodeActionName,
+		encodeResponse,
+	)
+
+	// Actions
+	r.Handler(http.MethodPost, "/admin/v1/action", actionCreateHandler)
+	r.Handler(http.MethodPost, "/admin/v1/action/:name/secrets", actionAddSecretHandler)
+
+	// Scheduling
 	r.Handler(http.MethodPost, "/admin/v1/schedule", createScheduleHandler)
 	r.Handler(http.MethodPatch, "/admin/v1/schedule/:id", toggleScheduleHandler)
-
 	r.Handler(http.MethodGet, "/admin/v1/schedule/:name", listScheduleHandler)
+
+	// Stats
 	r.Handler(http.MethodGet, "/admin/v1/stats/:name", listStatsHandler)
 
 	return r

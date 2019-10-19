@@ -1,8 +1,6 @@
 package fs
 
 import (
-	"fmt"
-
 	"io/ioutil"
 	"log"
 	"os"
@@ -11,19 +9,6 @@ import (
 	statikFS "github.com/rakyll/statik/fs"
 )
 
-const (
-	servicePathDefult = "/usr/local/var/ctrl"
-	actionsPath       = "actions"
-	stacksPath        = "stacks"
-)
-
-func BuildActionRepoPath() string {
-	return fmt.Sprintf("%s/%s", servicePathDefult, actionsPath)
-}
-
-func BuildActionPath(name string) string {
-	return fmt.Sprintf("%s/%s/%s", servicePathDefult, actionsPath, name)
-}
 
 func WriteFile(filepath string, data []byte) error {
 	fd, err := os.Create(filepath)
