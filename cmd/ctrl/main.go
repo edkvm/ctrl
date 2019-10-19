@@ -3,11 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/edkvm/ctrl"
-	"github.com/edkvm/ctrl/packing"
+	"os"
+
 	"log"
 	"net/http"
 
+	kitlog "github.com/go-kit/kit/log"
+
+	"github.com/edkvm/ctrl"
+	"github.com/edkvm/ctrl/packing"
 	"github.com/edkvm/ctrl/administrating"
 	"github.com/edkvm/ctrl/inmem"
 	"github.com/edkvm/ctrl/invoking"
@@ -59,11 +63,51 @@ func main() {
 	mux.Handle("/admin/v1/", adminHandler)
 
 
-	mux.Handle("/git/", http.StripPrefix("/git/", gitsrv.GitServer(cfg.GitDir())))
+	mux.Handle("/git/", gitsrv.GitServer(cfg.GitDir(), "/git/"))
 
 	log.Println("starting")
-	http.ListenAndServe(":6060", mux)
+	http.ListenAndServe(":6060", loggerMiddelware(mux))
 
+}
+
+type responseWriterWrapper struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+type loggingResponseWriter struct {
+
+}
+
+func NewResponseWriterWrapper(w http.ResponseWriter) *responseWriterWrapper {
+	return &responseWriterWrapper{w, http.StatusOK}
+}
+
+func (lrw *responseWriterWrapper) WriteHeader(code int) {
+	lrw.statusCode = code
+	lrw.ResponseWriter.WriteHeader(code)
+}
+
+type loggerHandler struct {
+	h http.Handler
+	logger kitlog.Logger
+}
+
+func loggerMiddelware(handler http.Handler) http.Handler {
+	var logger kitlog.Logger
+	logger = kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stderr))
+	logger = kitlog.With(logger, "instance_id", 123)
+
+	return &loggerHandler{
+		h: handler,
+		logger: logger,
+	}
+}
+
+func (l *loggerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ww := NewResponseWriterWrapper(w)
+	l.h.ServeHTTP(ww, r)
+	l.logger.Log("method", r.Method, "uri", r.URL, "status", ww.statusCode)
 }
 
 func loadConfigEnv() (*ConfigEnv,error) {

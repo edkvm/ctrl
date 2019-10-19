@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 )
 
@@ -33,8 +34,21 @@ func NewActionPack(sl *ctrl.ServiceLoc) *ActionPack {
 	}
 }
 
-func (ap *ActionPack) Create(name string) {
-	ap.sl.ActionFolderPath()
+func (ap *ActionPack) Create(name string) error {
+	dir := fmt.Sprintf("%s/%s.git", ap.sl.GitPath(), name)
+
+	if st, err := os.Stat(dir); err == nil && st.IsDir() {
+		return fmt.Errorf("function already exists")
+	}
+
+	// Create Bare git repo
+	args := []string{"init", "--bare", fmt.Sprintf("%s.git", name) }
+	command := exec.Command("/usr/bin/git", args...)
+	command.Dir = ap.sl.GitPath()
+
+	err := command.Run()
+
+	return err
 }
 
 func (ap *ActionPack) Pull() {
