@@ -1,33 +1,42 @@
-package execute
+package invoke
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/edkvm/ctrl"
+	"github.com/edkvm/ctrl/action"
+
 	"io/ioutil"
 	"log"
 	"net/rpc"
 	"os"
-	"os/exec"
 	"time"
 
-	ctrlFS "github.com/edkvm/ctrl/fs"
 	ctrlID "github.com/edkvm/ctrl/pkg/id"
+	ctrlFS "github.com/edkvm/ctrl/pkg/fs"
 )
 
 type ActionProvider struct {
-	path string
+	sl *ctrl.ServiceLoc
 }
 
-func NewActionProvider() *ActionProvider {
+func NewActionProvider(sl *ctrl.ServiceLoc) *ActionProvider {
 	return &ActionProvider{
-		ctrlFS.BuildActionRepoPath(),
+		 sl,
 	}
+}
+
+func (ap *ActionProvider) BuildAction(name string) (*action.Action, error) {
+	actionPath := ap.sl.ActionPath(name)
+	paramDef := ctrlFS.ReadFile(fmt.Sprintf("%s/params.json", actionPath))
+	configDef := ctrlFS.ReadFile(fmt.Sprintf("%s/config.json", actionPath))
+
+	return action.NewAction(paramDef, configDef), nil
 }
 
 func (ap *ActionProvider) List() []string {
 
-	items, err := ioutil.ReadDir(ap.path)
+	items, err := ioutil.ReadDir(ap.sl.ActionFolderPath())
 	if err != nil {
 		return nil
 	}
@@ -42,7 +51,7 @@ func (ap *ActionProvider) List() []string {
 }
 
 func (ap *ActionProvider) ActionExists(name string) bool {
-	actionPath := ctrlFS.BuildActionPath(name)
+	actionPath := ap.sl.ActionPath(name)
 	if _, err := os.Stat(actionPath); os.IsNotExist(err) {
 		return false
 	}
@@ -61,61 +70,6 @@ func (ap ActionProvider) EncodePayload(params map[string]interface{}) []byte {
 	return buf
 }
 
-func (ap *ActionProvider) ExecuteAction(name string, payload []byte, env []string) interface{} {
-
-	pod := newExecuter(name, "")
-
-	execName := pod.handlerPath
-
-
-	// TODO: Add context to cmd
-	cmd := exec.Command(execName)
-	cmd.Env = append(env, fmt.Sprintf("CTRL_INT_SOCKET=%v",pod.sockPath))
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		log.Printf("failed to connect stdout: %v\n", err)
-	}
-	defer stdout.Close()
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		log.Printf("failed to connect stderr: %v\n", err)
-	}
-	defer stderr.Close()
-
-	// TODO: Add Instrumentation
-	if err := cmd.Start(); err != nil {
-		log.Printf("failed to start cmd: %v\n", err)
-	}
-
-	outScanner := bufio.NewScanner(stdout)
-	errScanner := bufio.NewScanner(stderr)
-	go func() {
-		for outScanner.Scan() {
-			log.Printf("[%s] stdout: %v\n", name, outScanner.Text())
-		}
-	}()
-
-	go func() {
-		for errScanner.Scan() {
-			log.Printf("[%s] stderr: %v\n", name, errScanner.Text())
-		}
-	}()
-
-	log.Println("[ctrl]", "starting", "action", name)
-	result, err := pod.executeRPC(pod.sockPath, payload)
-	log.Println("[ctrl]", "finished", "action", name, "result", result)
-
-	cmd.Process.Kill()
-	if err := cmd.Wait(); err != nil {
-		log.Print(err)
-	}
-
-	return result
-
-}
-
 type executor struct {
 	ID string
 	execName    string
@@ -123,9 +77,9 @@ type executor struct {
 	sockPath    string
 }
 
-func newExecuter(name string, stack string) *executor {
+func (ap ActionProvider) newExecuter(name string, stack string) *executor {
 	id := ctrlID.GenULID()
-	actionPath := ctrlFS.BuildActionPath(name)
+	actionPath := ap.sl.ActionPath(name)
 	return &executor{
 		ID: id,
 		// Stack related
@@ -137,7 +91,7 @@ func newExecuter(name string, stack string) *executor {
 func (ex *executor) executeRPC(fd string , payload []byte) (interface{}, error) {
 
 	c, err := connectToRPC(fd)
-
+	log.Println(ex)
 	var raw []byte
 	err = c.Call("Action.Invoke", payload, &raw)
 	if err != nil {
@@ -179,4 +133,3 @@ func connectToRPC(fd string) (*rpc.Client, error) {
 	return c, nil
 
 }
-
