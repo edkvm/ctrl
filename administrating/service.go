@@ -2,6 +2,7 @@ package administrating
 
 import (
 	"fmt"
+	"github.com/edkvm/ctrl/packing"
 	"time"
 
 	"github.com/edkvm/ctrl/action"
@@ -16,10 +17,11 @@ type EventHandler interface {
 type HandlerFunc func (name string, schedID trigger.ScheduleID) error
 
 type Service interface {
+	AddAction(name string) error
+
 	ListSchedule(name string) ([]*trigger.Schedule, error)
 	ScheduleAction(name string, start time.Time) (trigger.ScheduleID, error)
-	ScheduleRecurringAction(name string, interval int, params action.ActionParams) (trigger.ScheduleID, error)
-
+	ScheduleRecurringAction(name string, interval int, params action.Params) (trigger.ScheduleID, error)
 	ToggleSchedule(id trigger.ScheduleID, enabled bool) error
 
 	ListStats(name string) ([]*action.Stat, error)
@@ -29,16 +31,23 @@ type service struct {
 	actionRepo   action.ActionRepo
 	schedRepo    trigger.ScheduleRepo
 	statsRepo    action.StatsRepo
+	actionPacker *packing.ActionPack
 	schedHandler EventHandler
 }
 
-func NewService(actRepo action.ActionRepo, schedRepo trigger.ScheduleRepo, statsRepo action.StatsRepo,schedHandler EventHandler) *service {
+func NewService(actRepo action.ActionRepo, schedRepo trigger.ScheduleRepo, statsRepo action.StatsRepo, actionPacker *packing.ActionPack, schedHandler EventHandler) *service {
 	return &service{
 		actionRepo: actRepo,
 		schedRepo:  schedRepo,
 		statsRepo: statsRepo,
+		actionPacker: actionPacker,
 		schedHandler: schedHandler,
 	}
+}
+
+func (s *service) AddAction(name string) error {
+
+	return nil
 }
 
 func (s *service) ListSchedule(name string) ([]*trigger.Schedule, error) {
@@ -55,7 +64,7 @@ func (s *service) ScheduleAction(name string, start time.Time) (trigger.Schedule
 	panic("implement me")
 }
 
-func (s *service) ScheduleRecurringAction(name string, interval int, params action.ActionParams) (trigger.ScheduleID, error) {
+func (s *service) ScheduleRecurringAction(name string, interval int, params action.Params) (trigger.ScheduleID, error) {
 	sched := trigger.NewRecurringSchedule(name, time.Now(), interval, params)
 	err := s.schedRepo.Store(sched)
 	if err != nil {

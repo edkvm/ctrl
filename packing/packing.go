@@ -3,7 +3,7 @@ package packing
 import (
 	"bytes"
 	"fmt"
-	"github.com/edkvm/ctrl/fs"
+	"github.com/edkvm/ctrl"
 	"github.com/edkvm/ctrl/packing/stacks"
 	"io"
 	"log"
@@ -21,26 +21,52 @@ var stacksList = map[string]StackConfig{
 	"go": stacks.NewGoV1(),
 }
 
+
+
+type ActionPack struct {
+	sl *ctrl.ServiceLoc
+}
+
+func NewActionPack(sl *ctrl.ServiceLoc) *ActionPack {
+	return &ActionPack{
+		sl: sl,
+	}
+}
+
+func (ap *ActionPack) Create(name string) {
+	ap.sl.ActionFolderPath()
+}
+
+func (ap *ActionPack) Pull() {
+
+}
+
+func (ap *ActionPack) Pack() {
+
+}
+
+
 type Pack struct {
-	stack StackConfig
-	name  string
-	files map[string][]byte
+	stack      StackConfig
+	actionName string
+	files      map[string][]byte
+	sl ctrl.ServiceLoc
 }
 
 func BuildPack(stackName, wd string) (*Pack, error) {
 	// TODO: Add more error handeling
 	dirs := strings.Split(wd, "/")
 	if len(dirs) < 2 {
-		// TODO: return error, name is not absolute
+		// TODO: return error, actionName is not absolute
 	}
 
-	// Action name is the folder name
-	funcName := dirs[len(dirs) - 1]
+	// Action actionName is the folder actionName
+	actionName := dirs[len(dirs) - 1]
 
 	pk := &Pack{
-		stack: stacksList[stackName],
-		name:  funcName,
-		files: make(map[string][]byte, 3),
+		stack:      stacksList[stackName],
+		actionName: actionName,
+		files:      make(map[string][]byte, 3),
 	}
 
 	files, err := pk.stack.Build(wd)
@@ -50,14 +76,12 @@ func BuildPack(stackName, wd string) (*Pack, error) {
 
 	pk.files = files
 
-	log.Println("built action:", funcName)
+	log.Println("built action:", actionName)
 	return pk, nil
 }
 
 func (pk *Pack) Deploy() error {
-
-
-	actionPath := fs.BuildActionPath(pk.name)
+	actionPath := pk.sl.ActionPath(pk.actionName)
 
 	// Create tmp folder
 	if _, err := os.Stat(actionPath); os.IsNotExist(err) {

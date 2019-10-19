@@ -1,10 +1,11 @@
 package invoking
 
 import (
-	"github.com/edkvm/ctrl/action"
-	"github.com/edkvm/ctrl/execute"
-	"github.com/edkvm/ctrl/trigger"
+	"github.com/edkvm/ctrl/invoke"
 	"time"
+
+	"github.com/edkvm/ctrl/action"
+	"github.com/edkvm/ctrl/trigger"
 )
 
 type Service interface {
@@ -16,11 +17,11 @@ type service struct {
 	actionRepo   action.ActionRepo
 	scheduleRepo trigger.ScheduleRepo
 	statsRepo    action.StatsRepo
-	actionTimer  *execute.ActionTimer
-	provider     *execute.ActionProvider
+	actionTimer  *invoke.ActionTimer
+	provider     *invoke.ActionProvider
 }
 
-func NewService(actRepo action.ActionRepo, scheduleRepo trigger.ScheduleRepo, statsRepo action.StatsRepo, actionTimer *execute.ActionTimer, provider *execute.ActionProvider) *service {
+func NewService(actRepo action.ActionRepo, scheduleRepo trigger.ScheduleRepo, statsRepo action.StatsRepo, actionTimer *invoke.ActionTimer, provider *invoke.ActionProvider) *service {
 	return &service{
 		actionRepo:   actRepo,
 		scheduleRepo: scheduleRepo,
@@ -53,11 +54,11 @@ func (s *service) RunAction(name string, params map[string]interface{}) (interfa
 	}(stat)
 
 	// TODO: Add Error handeling
-	ac := action.NewAction(name)
+	ac, _ := s.provider.BuildAction(name)
 
 	env := ac.BuildEnv()
 	payload := s.provider.EncodePayload(params)
-	result := s.provider.ExecuteAction(name, payload, env)
+	result := s.provider.InvokeAction(name, payload, env)
 
 	return result, nil
 }

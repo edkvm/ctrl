@@ -2,26 +2,10 @@ package inmem
 
 import (
 	"fmt"
-	"github.com/edkvm/ctrl/action"
 	"github.com/edkvm/ctrl/trigger"
 	"sync"
 	"time"
 )
-
-type actionRepo struct {
-	mtx sync.RWMutex
-	actions map[string]*action.Action
-}
-
-func NewActionRepo() *actionRepo {
-	return &actionRepo{
-		actions: make(map[string]*action.Action, 0),
-	}
-}
-
-func (r *actionRepo) FindAll() []*action.Action {
-	return nil
-}
 
 type scheduleRepo struct {
 	mtx sync.RWMutex
@@ -96,51 +80,4 @@ func (r *scheduleRepo) FindAllByTime(time time.Time) []*trigger.Schedule {
 
 	return items
 }
-
-
-type statsRepo struct {
-	mtx sync.RWMutex
-	stats map[string]*action.Stat
-}
-
-func NewStatsRepo() *statsRepo {
-	return &statsRepo{
-		stats: make(map[string]*action.Stat, 0),
-	}
-}
-
-func (r *statsRepo) Store(stat *action.Stat) error {
-	r.mtx.Lock()
-	defer r.mtx.Unlock()
-
-	r.stats[stat.ID] = stat
-
-	return nil
-}
-
-func (r *statsRepo) FindAll() []*action.Stat {
-
-	stats := make([]*action.Stat, 0, len(r.stats))
-
-	for _, v := range r.stats {
-		stats = append(stats, v)
-	}
-
-	return stats
-}
-
-func (r *statsRepo) FindByAction(actionID string) []*action.Stat {
-	r.mtx.RLock()
-	defer r.mtx.RUnlock()
-	list := make([]*action.Stat, 0)
-
-	for _, val := range r.stats {
-		if val.Action == actionID {
-			list = append(list, val)
-		}
-	}
-
-	return list
-}
-
 
