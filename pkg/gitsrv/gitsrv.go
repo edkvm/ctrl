@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -19,7 +20,7 @@ type srv struct {
 	gitBinPath string
 }
 
-func GitServer(rootDir string) http.Handler {
+func GitServer(rootDir string, prefix string) http.Handler {
 	g := &srv{
 		rootDir: rootDir,
 		gitBinPath: "/usr/bin/git",
@@ -28,8 +29,8 @@ func GitServer(rootDir string) http.Handler {
 	mux := httprouter.New()
 
 	// TODO: Add Auth
-	mux.HandlerFunc(http.MethodGet, "/:repo/info/refs", infoRefsHandler(g))
-	mux.HandlerFunc(http.MethodPost,"/:repo/git-receive-pack",recievePackHandler(g))
+	mux.HandlerFunc(http.MethodGet, "/git/:repo/info/refs", infoRefsHandler(g))
+	mux.HandlerFunc(http.MethodPost, "/git/:repo/git-receive-pack", recievePackHandler(g))
 
 	return mux
 }
@@ -44,12 +45,15 @@ func parseServiceType(input string) string {
 
 func infoRefsHandler(g *srv) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		log.Println("gsv 1")
 		params := httprouter.ParamsFromContext(r.Context())
 
 		repo := params.ByName("repo")
-		//r.URL.Query()["key"]
+
 		serviceName := parseServiceType(r.URL.Query().Get("service"))
+		log.Println("gsv 2")
 		repoPath, err := g.repoPath(repo)
+		log.Println("gsv 3", repoPath)
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte("Not Found"))
@@ -85,11 +89,11 @@ func (g *srv) repoPath(name string) (string, error){
 	repoPath := path.Join(g.rootDir, name)
 	stat, err := os.Stat(repoPath)
 	if  err != nil {
-		return "", err
+		return repoPath, err
 	}
 
 	if !stat.IsDir() {
-		return "", fmt.Errorf("not a valid repo")
+		return repoPath, fmt.Errorf("not a valid repo")
 	}
 
 	return repoPath, nil

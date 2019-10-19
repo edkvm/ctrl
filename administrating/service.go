@@ -17,7 +17,7 @@ type EventHandler interface {
 type HandlerFunc func (name string, schedID trigger.ScheduleID) error
 
 type Service interface {
-	AddAction(name string) error
+	CreateAction(name string) error
 
 	ListSchedule(name string) ([]*trigger.Schedule, error)
 	ScheduleAction(name string, start time.Time) (trigger.ScheduleID, error)
@@ -45,9 +45,8 @@ func NewService(actRepo action.ActionRepo, schedRepo trigger.ScheduleRepo, stats
 	}
 }
 
-func (s *service) AddAction(name string) error {
-
-	return nil
+func (s *service) CreateAction(name string) error {
+	return s.actionPacker.Create(name)
 }
 
 func (s *service) ListSchedule(name string) ([]*trigger.Schedule, error) {

@@ -41,7 +41,7 @@ func MakeHandler(srv Service) http.Handler {
 
 	actionCreateHandler := ctrlhttp.NewServer(
 		makeActionCreateEndpoint(srv),
-		decodeActionName,
+		decodeActionCreateRequest,
 		encodeResponse,
 	)
 
@@ -52,8 +52,8 @@ func MakeHandler(srv Service) http.Handler {
 	)
 
 	// Actions
-	r.Handler(http.MethodPost, "/admin/v1/action", actionCreateHandler)
-	r.Handler(http.MethodPost, "/admin/v1/action/:name/secrets", actionAddSecretHandler)
+	r.Handler(http.MethodPost, "/admin/v1/actions", actionCreateHandler)
+	r.Handler(http.MethodPost, "/admin/v1/actions/:name/secrets", actionAddSecretHandler)
 
 	// Scheduling
 	r.Handler(http.MethodPost, "/admin/v1/schedule", createScheduleHandler)
@@ -104,6 +104,20 @@ func decodeToggleRequest(ctx context.Context, r *http.Request) (interface{}, err
 	return scheduleToggleReq{
 		ID: id,
 		Enabled: body.Enabled,
+	}, nil
+}
+
+func decodeActionCreateRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	var body struct {
+		Name string `json:"name"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		return nil, err
+	}
+
+	return actionCreateReq{
+		Name: body.Name,
 	}, nil
 }
 
