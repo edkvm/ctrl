@@ -59,8 +59,8 @@ type actionCreateReq struct {
 
 func makeActionCreateEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
-		schedReq := req.(scheduleToggleReq)
-		err := s.ToggleSchedule(trigger.ScheduleID(schedReq.ID), schedReq.Enabled)
+		createReq := req.(actionCreateReq)
+		err := s.CreateAction(createReq.Name)
 		if err != nil {
 			return nil, err
 		}
