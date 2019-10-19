@@ -28,7 +28,7 @@ type scheduleResponse struct {
 func makeCreateScheduleEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
 		schedReq := req.(scheduleRequest)
-		result, err := s.ScheduleRecurringAction(schedReq.Action, schedReq.Interval, action.ActionParams(schedReq.Params))
+		result, err := s.ScheduleRecurringAction(schedReq.Action, schedReq.Interval, action.Params(schedReq.Params))
 		if err != nil {
 			return nil, err
 		}
@@ -42,6 +42,22 @@ type scheduleToggleReq struct {
 }
 
 func makeToggleScheduleEndpoint(s Service) endpoint.Endpoint {
+	return func(ctx context.Context, req interface{}) (interface{}, error) {
+		schedReq := req.(scheduleToggleReq)
+		err := s.ToggleSchedule(trigger.ScheduleID(schedReq.ID), schedReq.Enabled)
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, nil
+	}
+}
+
+type actionCreateReq struct {
+	Name        string
+}
+
+func makeActionCreateEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
 		schedReq := req.(scheduleToggleReq)
 		err := s.ToggleSchedule(trigger.ScheduleID(schedReq.ID), schedReq.Enabled)

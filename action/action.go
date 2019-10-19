@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
-	ctrlFS "github.com/edkvm/ctrl/fs"
 )
 
 var ErrMissingStats = errors.New("no stats for action")
@@ -15,42 +13,38 @@ type ActionRepo interface {
 	FindAll() []*Action
 }
 
-type Codename string
+type BlueprintID string
 
-type Code struct {
+type Blueprint struct {
 	Name        string
 	Description string
 	Author      string
 	Keywords    string
 	Version     string
+	Stack       string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
 
 type Action struct {
-	CodeID      Codename
+	BlueprintID BlueprintID
 	Name        string
 	createdAt   time.Time
 	updatedAt   time.Time
-	configPath  string
-	paramsPath  string
+	configDef   []byte
+	paramsDef   []byte
 }
 
-type ActionParams map[string]interface{}
+type Params map[string]interface{}
 
-func NewAction(name string) *Action {
-	actionPath := ctrlFS.BuildActionPath(name)
+func NewAction(paramDef []byte, configDef []byte) *Action {
 	return &Action{
-		Name:       name,
-		configPath: fmt.Sprintf("%s/config.json", actionPath),
-		paramsPath: fmt.Sprintf("%s/params.json", actionPath),
+		paramsDef: paramDef,
+		configDef: configDef,
 	}
 }
 
-
-
-func (fr *Action) ParamsToJSON(args []string) map[string]interface{} {
-	paramDef := ctrlFS.ReadFile(fr.paramsPath)
+func (a *Action) ParamsToJSON(args []string) map[string]interface{} {
 
 	vals := make([]interface{}, len(args))
 	for i, _ := range args {
@@ -58,7 +52,7 @@ func (fr *Action) ParamsToJSON(args []string) map[string]interface{} {
 	}
 
 	var params map[string]interface{}
-	json.Unmarshal(paramDef, &params)
+	json.Unmarshal(a.paramsDef, &params)
 
 	idx := 0
 	for k, _ := range params {
@@ -69,11 +63,9 @@ func (fr *Action) ParamsToJSON(args []string) map[string]interface{} {
 	return params
 }
 
-func (fr *Action) BuildEnv() []string {
-	configDef := ctrlFS.ReadFile(fr.configPath)
-
+func (a *Action) BuildEnv() []string {
 	var config map[string]interface{}
-	json.Unmarshal(configDef, &config)
+	json.Unmarshal(a.configDef, &config)
 
 	env := make([]string, 0)
 	for k, v := range config {
