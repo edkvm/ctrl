@@ -46,7 +46,8 @@ func main() {
 
 				log.Println("deploying action from: ", wdPath)
 
-				pk, err := packing.BuildPack("node10", wdPath)
+				stackName := c.String("stack")
+				pk, err := packing.BuildPack(stackName, wdPath)
 				if err != nil {
 					return err
 				}
@@ -72,7 +73,7 @@ func main() {
 			Name: "ls",
 			Usage: "list all the available actions",
 			Action: func(c *cli.Context) error {
-				ar := ctrl.NewActionRepo()
+				ar := ctrl.NewActionProvider()
 
 				fmt.Println(ar.List())
 				return nil
@@ -87,7 +88,7 @@ func main() {
 
 
 				args := c.Args()[1:]
-				ar := ctrl.NewActionRepo()
+				ar := ctrl.NewActionProvider()
 
 				if !ar.ActionExists(actionName) {
 					log.Fatal(fmt.Sprintf("action does not exists: %s", actionName))
@@ -100,8 +101,9 @@ func main() {
 				// Parse params
 				params := fr.ParamsToJSON([]string(args))
 
-				payload, env := fr.BuildPayload(params)
+				payload, env := fr.EncodePayload(params)
 				result := ar.ExecuteAction(actionName, payload, env)
+
 
 				log.Println(result)
 
