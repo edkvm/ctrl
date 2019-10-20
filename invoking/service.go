@@ -11,6 +11,7 @@ import (
 type Service interface {
 	RunAction(name string, params map[string]interface{}) (interface{}, error)
 	AddActionSchedule(name string, schedID trigger.ScheduleID) error
+	RemoveActionSchedule(name string, schedID trigger.ScheduleID) error
 }
 
 type service struct {
