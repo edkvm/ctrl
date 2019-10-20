@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -15,22 +14,48 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-type srv struct {
-	rootDir string
-	gitBinPath string
+type EventHandler interface{
+	NotifyOnPush(string)
 }
 
-func GitServer(rootDir string, prefix string) http.Handler {
+type gitEventHandler struct {
+	notifyOnPushHandlerFunc func(string) error
+}
+
+func NewEventHadler(notifyOnPushHandlerFunc func(string) error) EventHandler {
+	return &gitEventHandler{
+		notifyOnPushHandlerFunc,
+	}
+}
+
+func (geh *gitEventHandler) NotifyOnPush(repo string) {
+	go func() {
+		geh.notifyOnPushHandlerFunc(repo)
+	}()
+}
+
+type srv struct {
+	rootDir     string
+	gitBinPath  string
+	pushHandler EventHandler
+}
+
+func GitServer(rootDir string, prefix string, ev EventHandler) http.Handler {
+	if prefix == "" {
+		prefix = "/"
+	}
+
 	g := &srv{
 		rootDir: rootDir,
 		gitBinPath: "/usr/bin/git",
+		pushHandler: ev,
 	}
 
 	mux := httprouter.New()
 
 	// TODO: Add Auth
-	mux.HandlerFunc(http.MethodGet, "/git/:repo/info/refs", infoRefsHandler(g))
-	mux.HandlerFunc(http.MethodPost, "/git/:repo/git-receive-pack", recievePackHandler(g))
+	mux.HandlerFunc(http.MethodGet, fmt.Sprintf("%s:repo/info/refs", prefix), infoRefsHandler(g))
+	mux.HandlerFunc(http.MethodPost, fmt.Sprintf("%s:repo/git-receive-pack", prefix), recievePackHandler(g))
 
 	return mux
 }
@@ -45,15 +70,12 @@ func parseServiceType(input string) string {
 
 func infoRefsHandler(g *srv) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Println("gsv 1")
 		params := httprouter.ParamsFromContext(r.Context())
 
 		repo := params.ByName("repo")
 
 		serviceName := parseServiceType(r.URL.Query().Get("service"))
-		log.Println("gsv 2")
 		repoPath, err := g.repoPath(repo)
-		log.Println("gsv 3", repoPath)
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte("Not Found"))
@@ -82,6 +104,7 @@ func recievePackHandler(g *srv) http.HandlerFunc {
 		serviceName := "receive-pack"
 		w.Header().Set("Content-Type", fmt.Sprintf("application/x-git-%s-result", serviceName))
 		g.serviceRpc(repo, serviceName, r.Body, w)
+		g.pushHandler.NotifyOnPush(repo)
 	}
 }
 
