@@ -11,11 +11,11 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 
 	"github.com/edkvm/ctrl"
-	"github.com/edkvm/ctrl/packing"
 	"github.com/edkvm/ctrl/administrating"
 	"github.com/edkvm/ctrl/inmem"
-	"github.com/edkvm/ctrl/invoking"
 	"github.com/edkvm/ctrl/invoke"
+	"github.com/edkvm/ctrl/invoking"
+	"github.com/edkvm/ctrl/packing"
 	"github.com/edkvm/ctrl/pkg/gitsrv"
 )
 
@@ -37,6 +37,7 @@ func main() {
 
 	serviceLoc := ctrl.NewServeLoc(cfg.RootDir)
 	mux := http.NewServeMux()
+
 
 
 	actionRepo := inmem.NewActionRepo()
@@ -63,7 +64,8 @@ func main() {
 	mux.Handle("/admin/v1/", adminHandler)
 
 
-	mux.Handle("/git/", gitsrv.GitServer(cfg.GitDir(), "/git/"))
+	// Expose git endpoints
+	mux.Handle("/git/", gitsrv.GitServer(cfg.GitDir(), "/git/", gitsrv.NewEventHadler(adminService.ActionCodeModified)))
 
 	log.Println("starting")
 	http.ListenAndServe(":6060", loggerMiddelware(mux))

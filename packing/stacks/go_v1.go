@@ -40,6 +40,7 @@ func (gs *goStack) Build(wd string) (map[string][]byte, error) {
 
 	cmdParams := []string{"build", "-o", fmt.Sprintf("%s/%s", wd, "action"), fmt.Sprintf("%s/%s", wd, "main.go")}
 	cmd := exec.Command("go", cmdParams...)
+	cmd.Dir = wd
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
