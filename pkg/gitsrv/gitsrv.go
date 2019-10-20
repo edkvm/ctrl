@@ -96,6 +96,22 @@ func infoRefsHandler(g *srv) http.HandlerFunc {
 	}
 }
 
+type ProgressResponseWriter struct {
+	ResponseWriter http.ResponseWriter
+}
+
+func (wr *ProgressResponseWriter) Write(p []byte) (int, error) {
+	return wr.ResponseWriter.Write(p)
+}
+
+func (wr *ProgressResponseWriter) WriteHeader(code int) {
+	wr.ResponseWriter.WriteHeader(code)
+}
+
+func (wr *ProgressResponseWriter) Header() http.Header {
+	return wr.ResponseWriter.Header()
+}
+
 func recievePackHandler(g *srv) http.HandlerFunc {
 	return func(w http.ResponseWriter, r * http.Request) {
 		params := httprouter.ParamsFromContext(r.Context())
@@ -103,7 +119,13 @@ func recievePackHandler(g *srv) http.HandlerFunc {
 		repo := params.ByName("repo")
 		serviceName := "receive-pack"
 		w.Header().Set("Content-Type", fmt.Sprintf("application/x-git-%s-result", serviceName))
-		g.serviceRpc(repo, serviceName, r.Body, w)
+
+		ww := &ProgressResponseWriter{
+			ResponseWriter: w,
+		}
+		g.serviceRpc(repo, serviceName, r.Body, ww)
+
+
 		g.pushHandler.NotifyOnPush(repo)
 	}
 }

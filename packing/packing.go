@@ -60,14 +60,14 @@ func (ap *ActionPack) Deploy(repoName string) error {
 		return fmt.Errorf("wrong repo name")
 	}
 
-	name := list[0]
-	wd := ap.sl.BlueprintActionPath(name)
+	actionName := list[0]
+	wd := ap.sl.BlueprintActionPath(actionName)
 
 
 	args := []string{"pull", "origin", "master" }
 	dir := wd
 	if _, err := os.Stat(wd); os.IsNotExist(err) {
-		args = []string{"clone", ap.sl.GitActionPath(name) }
+		args = []string{"clone", ap.sl.GitActionPath(actionName) }
 		dir = ap.sl.BlueprintDir()
 	}
 	// Clone from git
@@ -81,13 +81,19 @@ func (ap *ActionPack) Deploy(repoName string) error {
 	}
 
 	// Build in place
-	pack, err := BuildPack("go", wd)
+	pack, err := BuildPack("go", actionName, wd)
 	if err != nil {
 		return err
 	}
 
 	// Deploy
-	return pack.Deploy()
+	err = pack.Deploy(ap.sl.ActionPath(actionName))
+	if err != nil {
+		return err
+	}
+
+	log.Println("method", "deploy", "action", actionName, "path", ap.sl.ActionPath(actionName))
+	return nil
 }
 
 func (ap *ActionPack) Pack() {
@@ -99,18 +105,14 @@ type Pack struct {
 	stack      StackConfig
 	actionName string
 	files      map[string][]byte
-	sl ctrl.ServiceLoc
 }
 
-func BuildPack(stackName, wd string) (*Pack, error) {
+func BuildPack(stackName, actionName, wd string) (*Pack, error) {
 	// TODO: Add more error handeling
 	dirs := strings.Split(wd, "/")
 	if len(dirs) < 2 {
 		// TODO: return error, actionName is not absolute
 	}
-
-	// Action actionName is the folder actionName
-	actionName := dirs[len(dirs) - 1]
 
 	pk := &Pack{
 		stack:      stacksList[stackName],
@@ -125,23 +127,21 @@ func BuildPack(stackName, wd string) (*Pack, error) {
 
 	pk.files = files
 
-	log.Println("built action:", actionName)
+	log.Println("method", "build", "action", actionName, "wd", wd)
 	return pk, nil
 }
 
-func (pk *Pack) Deploy() error {
-	actionPath := pk.sl.ActionPath(pk.actionName)
+func (pk *Pack) Deploy(dst string) error {
 
 	// Create tmp folder
-	if _, err := os.Stat(actionPath); os.IsNotExist(err) {
-		err := os.MkdirAll(fmt.Sprintf("%s/tmp", actionPath), os.ModePerm)
+	if _, err := os.Stat(dst); os.IsNotExist(err) {
+		err := os.MkdirAll(fmt.Sprintf("%s/tmp", dst), os.ModePerm)
 		if err != nil {
 			return err
 		}
 	}
 
-
-	err := pk.stack.Deploy(actionPath)
+	err := pk.stack.Deploy(dst)
 	if err != nil {
 		return nil
 	}
@@ -152,7 +152,7 @@ func (pk *Pack) Deploy() error {
 		file := pk.files[name]
 		srcReader := bytes.NewReader(file)
 
-		dstFd, err := os.OpenFile(fmt.Sprintf("%s/%s", actionPath, name),os.O_RDWR|os.O_CREATE|os.O_TRUNC,os.ModePerm)
+		dstFd, err := os.OpenFile(fmt.Sprintf("%s/%s", dst, name),os.O_RDWR|os.O_CREATE|os.O_TRUNC,os.ModePerm)
 		if err != nil {
 			return err
 		}
