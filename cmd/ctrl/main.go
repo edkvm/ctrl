@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"log"
 	"net/http"
 
 	kitlog "github.com/go-kit/kit/log"
@@ -34,6 +33,10 @@ func main() {
 	if err != nil {
 
 	}
+
+	var logger kitlog.Logger
+	logger = kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stderr))
+	logger = kitlog.With(logger, "instance_id", 123)
 
 	serviceLoc := ctrl.NewServeLoc(cfg.RootDir)
 	mux := http.NewServeMux()
@@ -67,8 +70,12 @@ func main() {
 	// Expose git endpoints
 	mux.Handle("/git/", gitsrv.GitServer(cfg.GitDir(), "/git/", gitsrv.NewEventHadler(adminService.ActionCodeModified)))
 
-	log.Println("starting")
-	http.ListenAndServe(":6060", loggerMiddelware(mux))
+	logger.Log("level", "info", "msg", fmt.Sprintf("staring on port %v", cfg.Port))
+
+	err = http.ListenAndServe(fmt.Sprintf(":%v", cfg.Port), NewLoggerMiddelware(logger, mux))
+	if err != nil {
+		logger.Log("level", "error", "msg", err)
+	}
 
 }
 
@@ -95,11 +102,7 @@ type loggerHandler struct {
 	logger kitlog.Logger
 }
 
-func loggerMiddelware(handler http.Handler) http.Handler {
-	var logger kitlog.Logger
-	logger = kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stderr))
-	logger = kitlog.With(logger, "instance_id", 123)
-
+func NewLoggerMiddelware(logger kitlog.Logger, handler http.Handler) http.Handler {
 	return &loggerHandler{
 		h: handler,
 		logger: logger,
