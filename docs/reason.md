@@ -1,11 +1,11 @@
 ### The Problem
 
 Developers spend a lot of their time on routine and mundane tasks  
-like migration, data entry, data enrichment, data processing, connecting between
-variuos apis and ect. 
+like migration of data, data entry, data enrichment, data processing, connecting between
+various apis and ect. 
  
 Those task are usually not directly business related and time spent on them   
-is minimal, though usually wasted.   
+is minimal, though usually wastful.   
  
 The tasks are considered a disposable solution to a very specific problem they   
 are not designed to be used again. Unfortunately it is usually not the case and    
@@ -26,6 +26,9 @@ Another fallacy is that current solutions are advertised as a replacment to prod
 loads, which is far from reality.
 
 #### Related Ideas
+- n8n.io
+- perfect.io
+- Apache Airflow
 - StdLib
 - Zapier
 - IFFFT
@@ -46,18 +49,20 @@ Project Automation
 
 
 Must Have:
-* Observability
+* Hooks
+* Schedule
 * Retry
 * Easy Modifications for parameters
 * Deploy Stages
 * Security
-* Hooks
-* Run on Developer Computer 
+* Observability
+* Access for the web with an endpoint
+ 
 
 Should Have:
 * Consider using git interface
 * Build on the server
-* Access for the web with an endpoint
+
 
 
 ### Assumptions
