@@ -18,6 +18,7 @@ type HandlerFunc func (name string, schedID trigger.ScheduleID) error
 
 type Service interface {
 	CreateAction(name string) error
+	ActionCodeModified(name string) error
 
 	ListSchedule(name string) ([]*trigger.Schedule, error)
 	ScheduleAction(name string, start time.Time) (trigger.ScheduleID, error)
@@ -47,6 +48,10 @@ func NewService(actRepo action.ActionRepo, schedRepo trigger.ScheduleRepo, stats
 
 func (s *service) CreateAction(name string) error {
 	return s.actionPacker.Create(name)
+}
+
+func (s *service) ActionCodeModified(name string) error {
+	return s.actionPacker.Deploy(name)
 }
 
 func (s *service) ListSchedule(name string) ([]*trigger.Schedule, error) {
