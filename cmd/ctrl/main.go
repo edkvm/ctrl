@@ -1,13 +1,17 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"net/http"
 
-	kitlog "github.com/go-kit/kit/log"
+
 
 	"github.com/edkvm/ctrl"
 	"github.com/edkvm/ctrl/administrating"
@@ -16,6 +20,7 @@ import (
 	"github.com/edkvm/ctrl/invoking"
 	"github.com/edkvm/ctrl/packing"
 	"github.com/edkvm/ctrl/pkg/gitsrv"
+
 )
 
 type ConfigEnv struct {
@@ -34,9 +39,8 @@ func main() {
 
 	}
 
-	var logger kitlog.Logger
-	logger = kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stderr))
-	logger = kitlog.With(logger, "instance_id", 123)
+	logger := NewLogger()
+
 
 	serviceLoc := ctrl.NewServeLoc(cfg.RootDir)
 	mux := http.NewServeMux()
@@ -71,56 +75,38 @@ func main() {
 	mux.Handle("/git/", gitsrv.GitServer(cfg.GitDir(), "/git/", gitsrv.NewEventHadler(adminService.ActionCodeModified)))
 
 	logger.Log("level", "info", "msg", fmt.Sprintf("staring on port %v", cfg.Port))
-
-	err = http.ListenAndServe(fmt.Sprintf(":%v", cfg.Port), NewLoggerMiddelware(logger, mux))
-	if err != nil {
-		logger.Log("level", "error", "msg", err)
+	srv := &http.Server{
+		Handler:      NewLoggerMiddelware(logger, mux),
+		Addr:         fmt.Sprintf(":%v", cfg.Port),
+		ReadTimeout:  60 * time.Second,
+		WriteTimeout: 60 * time.Second,
 	}
 
-}
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			logger.Log("level", "error", "msg", err)
+		}
+	}()
 
-type responseWriterWrapper struct {
-	http.ResponseWriter
-	statusCode int
-}
+	term := make(chan os.Signal, 1)
+	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
 
-type loggingResponseWriter struct {
+	<- term
 
-}
-
-func NewResponseWriterWrapper(w http.ResponseWriter) *responseWriterWrapper {
-	return &responseWriterWrapper{w, http.StatusOK}
-}
-
-func (lrw *responseWriterWrapper) WriteHeader(code int) {
-	lrw.statusCode = code
-	lrw.ResponseWriter.WriteHeader(code)
-}
-
-type loggerHandler struct {
-	h http.Handler
-	logger kitlog.Logger
-}
-
-func NewLoggerMiddelware(logger kitlog.Logger, handler http.Handler) http.Handler {
-	return &loggerHandler{
-		h: handler,
-		logger: logger,
+	ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		os.Exit(1)
+		return
 	}
-}
-
-func (l *loggerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ww := NewResponseWriterWrapper(w)
-	l.h.ServeHTTP(ww, r)
-	l.logger.Log("method", r.Method, "uri", r.URL, "status", ww.statusCode)
+	os.Exit(0)
 }
 
 func loadConfigEnv() (*ConfigEnv,error) {
-	cfg := &ConfigEnv{
-		RootDir: "/usr/local/var/ctrl",
-	}
+	cfg := &ConfigEnv{}
 
 	flag.IntVar(&cfg.Port,"port",6060,"specify the port, defaults to 6060")
+	flag.StringVar(&cfg.RootDir, "dir", "/usr/local/var/ctrl", "specify a directory for the service")
 	flag.Parse()
 
 	return cfg, nil
