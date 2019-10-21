@@ -147,7 +147,7 @@ func (ap ActionProvider) newExecuter(name string, stack string) *executor {
 func (ex *executor) executeRPC(fd string , payload []byte) (interface{}, error) {
 
 	c, err := connectToRPC(fd)
-	log.Println(ex)
+
 	var raw []byte
 	err = c.Call("Action.Invoke", payload, &raw)
 	if err != nil {
