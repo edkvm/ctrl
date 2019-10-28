@@ -25,6 +25,8 @@ type Service interface {
 	ScheduleRecurringAction(name string, interval int, params action.Params) (trigger.ScheduleID, error)
 	ToggleSchedule(id trigger.ScheduleID, enabled bool) error
 
+	AddWebhook(name string) (*trigger.Webhook, error)
+
 	ListStats(name string) ([]*action.Stat, error)
 }
 
@@ -52,6 +54,10 @@ func (s *service) CreateAction(name string) error {
 
 func (s *service) ActionCodeModified(name string) error {
 	return s.actionPacker.Deploy(name)
+}
+
+func (s *service) AddWebhook(name string) (*trigger.Webhook, error) {
+	panic("not implemented")
 }
 
 func (s *service) ListSchedule(name string) ([]*trigger.Schedule, error) {
