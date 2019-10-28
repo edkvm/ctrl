@@ -31,7 +31,7 @@ COPY --from=builder /service/build/ctrlsrv /ctrl/bin/
 RUN chmod +x /ctrl/bin/ctrlsrv
 
 EXPOSE 6060
-EXPOSE 6063
+
 
 ENTRYPOINT ["./bin/ctrlsrv", "-dir=/ctrl"]
 

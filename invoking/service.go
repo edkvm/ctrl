@@ -13,7 +13,9 @@ type Service interface {
 	AddActionSchedule(name string, schedID trigger.ScheduleID) error
 	RemoveActionSchedule(name string, schedID trigger.ScheduleID) error
 
+
 	TriggerActionWithWebhook(name string, params map[string]interface{}) error
+
 }
 
 type service struct {
@@ -33,6 +35,7 @@ func NewService(actRepo action.ActionRepo, scheduleRepo trigger.ScheduleRepo, st
 		provider:     provider,
 	}
 }
+
 
 func (s *service) RunAction(name string, params map[string]interface{}) (interface{}, error) {
 	stat := action.NewStat(name, time.Now(), action.Running)
@@ -66,8 +69,9 @@ func (s *service) RemoveActionSchedule(name string, schedID trigger.ScheduleID) 
 	return nil
 }
 
-func (s *service) TriggerActionWithWebhook(webhookID trigger.WebhookID, params map[string]interface{}) error {
 
+func (s *service) TriggerActionWithWebhook(webhookID trigger.WebhookID, params map[string]interface{}) error {
+	return nil
 }
 
 
