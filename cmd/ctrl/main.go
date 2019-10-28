@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"os"
@@ -75,6 +76,7 @@ func main() {
 	mux.Handle("/git/", gitsrv.GitServer(cfg.GitDir(), "/git/", gitsrv.NewEventHadler(adminService.ActionCodeModified)))
 
 	logger.Log("level", "info", "msg", fmt.Sprintf("staring on port %v", cfg.Port))
+
 	srv := &http.Server{
 		Handler:      NewLoggerMiddelware(logger, mux),
 		Addr:         fmt.Sprintf(":%v", cfg.Port),
