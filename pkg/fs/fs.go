@@ -9,7 +9,6 @@ import (
 	statikFS "github.com/rakyll/statik/fs"
 )
 
-
 func WriteFile(filepath string, data []byte) error {
 	fd, err := os.Create(filepath)
 	if err != nil {

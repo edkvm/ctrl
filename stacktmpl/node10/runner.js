@@ -28,84 +28,24 @@ syserr = (function() {
     }
 })()
 
-// Direct all console.log to stderr
-function pipeStdin() {
-    let buf = '';
-
-    return new Promise(resolve => {
-
-        const rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout
-        });
-
-        rl.on('line', (line) => {
-            buf += line;
-        });
-
-        rl.on('close', () => {
-            resolve(buf)
+module.exports.run = (handler, handlerName) => {
+    let args = process.argv.slice(2);
+    let raw = args[0];
+    try {
+        syslog(args[0])
+        const fn = handler[handlerName];
+        let input = JSON.parse(raw)
+        fn(input.params, input.ctx).then((data, err) => {
+            if (err !== undefined && err !== null) {
+                syserr(`${err}`)
+            } else {
+                syslog(data)
+            }
         })
-    });
-}
-
-function IPCServer(fd) {
-
-    srv = net.createConnection(fd)
-
-    srv.on('connect', () => {
-        srv.write("op|start");
-    })
-    srv.on('error', (err) => {
-        syserr(`${err}`);
-    })
-
-    return {
-        write: (data) => {
-            return new Promise(resolve => {
-                resolve(srv.write(data))
-            })
-        },
-        read: () => {
-            return new Promise(resolve => {
-                srv.on('data', (data) => {
-                    resolve(data.toString());
-                })
-            })
-        },
-        end: () => {
-            srv.write("op|close")
-        }
-
+    } catch (err) {
+        syserr(`${err} input: ${raw}`);
 
     }
-
-}
-
-module.exports.run = (handler, handlerName) => {
-
-    let args = process.argv.slice(2);
-    let fd = args[0];
-    pipe = IPCServer(fd)
-    pipe.read().then(raw => {
-        try {
-            const fn = handler[handlerName];
-            let input = JSON.parse(raw)
-            fn(input.params, input.ctx, (data, err) => {
-                if (err !== undefined && err !== null) {
-                    syserr(`${err}`)
-                    pipe.end()
-                } else {
-                    pipe.write(data)
-                    pipe.end()
-                }
-
-            })
-        } catch (err) {
-            syserr(`${err} input: ${raw}`);
-            pipe.end()
-        }
-    });
 }
 
 

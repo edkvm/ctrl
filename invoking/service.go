@@ -1,8 +1,9 @@
 package invoking
 
 import (
-	"github.com/edkvm/ctrl/invoke"
 	"time"
+
+	"github.com/edkvm/ctrl/invoke"
 
 	"github.com/edkvm/ctrl/action"
 	"github.com/edkvm/ctrl/trigger"
@@ -13,9 +14,7 @@ type Service interface {
 	AddActionSchedule(name string, schedID trigger.ScheduleID) error
 	RemoveActionSchedule(name string, schedID trigger.ScheduleID) error
 
-
 	TriggerActionWithWebhook(name string, params map[string]interface{}) error
-
 }
 
 type service struct {
@@ -26,7 +25,12 @@ type service struct {
 	provider     *invoke.ActionProvider
 }
 
-func NewService(actRepo action.ActionRepo, scheduleRepo trigger.ScheduleRepo, statsRepo action.StatsRepo, actionTimer *invoke.ActionTimer, provider *invoke.ActionProvider) *service {
+func NewService(
+	actRepo action.ActionRepo,
+	scheduleRepo trigger.ScheduleRepo,
+	statsRepo action.StatsRepo,
+	actionTimer *invoke.ActionTimer,
+	provider *invoke.ActionProvider) *service {
 	return &service{
 		actionRepo:   actRepo,
 		scheduleRepo: scheduleRepo,
@@ -36,10 +40,9 @@ func NewService(actRepo action.ActionRepo, scheduleRepo trigger.ScheduleRepo, st
 	}
 }
 
-
 func (s *service) RunAction(name string, params map[string]interface{}) (interface{}, error) {
 	stat := action.NewStat(name, time.Now(), action.Running)
-	defer func(stat *action.Stat){
+	defer func(stat *action.Stat) {
 		s.statsRepo.Store(stat)
 	}(stat)
 
@@ -47,8 +50,8 @@ func (s *service) RunAction(name string, params map[string]interface{}) (interfa
 	ac, _ := s.provider.BuildAction(name)
 
 	env := ac.BuildEnv()
-	payload := s.provider.EncodePayload(params)
-	result := s.provider.InvokeAction(name, payload, env)
+
+	result := s.provider.InvokeAction(name, params, env)
 
 	return result, nil
 }
@@ -69,11 +72,6 @@ func (s *service) RemoveActionSchedule(name string, schedID trigger.ScheduleID) 
 	return nil
 }
 
-
-func (s *service) TriggerActionWithWebhook(webhookID trigger.WebhookID, params map[string]interface{}) error {
+func (s *service) TriggerActionWithWebhook(webhookID string, params map[string]interface{}) error {
 	return nil
 }
-
-
-
-
