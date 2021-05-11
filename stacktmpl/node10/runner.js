@@ -1,22 +1,6 @@
-const http = require('http');
-
-function handler(req, res) {
-    let buf = null;
-
-    // listen for incoming data
-    req.on('data', data => {
-        console.log(data);
-        if (buf === null) {
-            buf = data;
-        } else {
-            buf = buf + data;
-        }
-    });
-
-    req.on('end', () => {
-        console.log(data);
-    })
-}
+const readline = require('readline');
+const net = require('net');
+const fs = require('fs');
 
 syslog = (function() {
     let orig = console.log
@@ -36,7 +20,7 @@ syserr = (function() {
     return function() {
         let tmp = process.stderr
         try {
-            arguments[0] = `__2|${arguments[0]}`
+            arguments[0] = `__2|${arguments[0]}_`
             orig.apply(console, arguments)
         } finally {
             process.stderr = tmp
@@ -45,30 +29,23 @@ syserr = (function() {
 })()
 
 module.exports.run = (handler, handlerName) => {
-
     let args = process.argv.slice(2);
-    let fd = args[0];
-    pipe = IPCServer(fd)
-    pipe.read().then(raw => {
-        try {
-            const fn = handler[handlerName];
-            let input = JSON.parse(raw)
-            fn(input.params, input.ctx)
-            .then(data => {
-                pipe.write(data)
-                pipe.end()
-            })
-            .catch(error => {
-                pipe.write(error)
-                pipe.end()
+    let raw = args[0];
+    try {
+        syslog(args[0])
+        const fn = handler[handlerName];
+        let input = JSON.parse(raw)
+        fn(input.params, input.ctx).then((data, err) => {
+            if (err !== undefined && err !== null) {
+                syserr(`${err}`)
+            } else {
+                syslog(data)
+            }
+        })
+    } catch (err) {
+        syserr(`${err} input: ${raw}`);
 
-            });
-        } catch (err) {
-            syserr(`${err} input: ${raw}`);
-            pipe.end()
-        }
-    });
+    }
 }
-
 
 

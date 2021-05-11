@@ -4,6 +4,9 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"os/exec"
+	"strings"
+
 	"github.com/edkvm/ctrl"
 	"github.com/edkvm/ctrl/action"
 
@@ -13,8 +16,8 @@ import (
 	"os"
 	"time"
 
-	ctrlID "github.com/edkvm/ctrl/pkg/id"
 	ctrlFS "github.com/edkvm/ctrl/pkg/fs"
+	ctrlID "github.com/edkvm/ctrl/pkg/id"
 )
 
 type ActionProvider struct {
@@ -23,7 +26,7 @@ type ActionProvider struct {
 
 func NewActionProvider(sl *ctrl.ServiceLoc) *ActionProvider {
 	return &ActionProvider{
-		 sl,
+		sl,
 	}
 }
 
@@ -60,33 +63,50 @@ func (ap *ActionProvider) ActionExists(name string) bool {
 	return true
 }
 
-func (ap ActionProvider) EncodePayload(params map[string]interface{}) []byte {
-	invReq := make(map[string]interface{}, 0)
 
-	encParams, _ := json.Marshal(params)
-	invReq["payload"] = encParams
-
-	buf, _ := json.Marshal(invReq)
-
-	return buf
-}
 
 type executor struct {
-	ID string
+	ID          string
 	execName    string
 	handlerPath string
 	sockPath    string
+	configPath  string
 }
 
-func (ap ActionProvider) InvokeAction(name string, payload []byte, env []string) interface{} {
+func (ap ActionProvider) InvokeAction(name string, params map[string]interface{}, env []string) interface{} {
 
-	pod := ap.newExecuter(name, "")
+	pod := ap.newExecuter(name, "node10")
 
-	execName := pod.handlerPath
 
-	cmd := buildCmd(execName)
 
-	cmd.Env = append(env, fmt.Sprintf("CTRL_INT_SOCKET=%v",pod.sockPath))
+	dat, err := ioutil.ReadFile(pod.configPath)
+	if err != nil {
+		log.Printf("msg=action config does not exist,path=%v", pod.configPath)
+	}
+	var actionConfig map[string]interface{}
+
+	err = json.Unmarshal(dat, &actionConfig)
+	if err != nil {
+		log.Printf("failed to read action config")
+	}
+
+	payload, _ := pod.EncodePayload(params)
+	if err != nil {
+		log.Printf("msg=action config does not exist,path=%v", pod.configPath)
+	}
+
+	//execName := pod.handlerPath
+	args := []string{
+		pod.handlerPath,
+		fmt.Sprintf("%v", string(payload)),
+	}
+	cmd := exec.Command("node", args...)
+
+	for k, v := range actionConfig {
+		env = append(env, fmt.Sprintf("%v=%v", k, v))
+	}
+	log.Println(env)
+	cmd.Env = env
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -100,16 +120,28 @@ func (ap ActionProvider) InvokeAction(name string, payload []byte, env []string)
 	}
 	defer stderr.Close()
 
+	log.Printf("cmd=%s", cmd.Args)
 	// TODO: Add Instrumentation
 	if err := cmd.Start(); err != nil {
 		log.Printf("failed to start cmd: %v\n", err)
 	}
 
+	var tmpResult map[string]interface{}
+
 	outScanner := bufio.NewScanner(stdout)
 	errScanner := bufio.NewScanner(stderr)
+
 	go func() {
 		for outScanner.Scan() {
-			log.Printf("[%s] stdout: %v\n", name, outScanner.Text())
+			out := outScanner.Text()
+			log.Printf("[%s] stdout: %v\n", name, out)
+			if strings.Contains(out, fmt.Sprintf("%s", pod.ID)) {
+				log.Println("value=", out)
+				err := json.Unmarshal([]byte(out), &tmpResult)
+				if err != nil {
+					log.Println(err)
+				}
+			}
 		}
 	}()
 
@@ -119,32 +151,45 @@ func (ap ActionProvider) InvokeAction(name string, payload []byte, env []string)
 		}
 	}()
 
-	log.Println("[ctrl]", "starting", "action", name)
-	result, err := pod.executeRPC(pod.sockPath, payload)
-	log.Println("[ctrl]", "finished", "action", name, "result", result)
 
-	cmd.Process.Kill()
+	log.Println("[ctrl]", "starting", "action", name)
+
+
+
+	//cmd.Process.Kill()
 	if err := cmd.Wait(); err != nil {
 		log.Print(err)
 	}
-
-	return result
+	log.Println("[ctrl]", "finished", "action", name, "result", tmpResult[pod.ID])
+	return tmpResult[pod.ID]
 
 }
-
 
 func (ap ActionProvider) newExecuter(name string, stack string) *executor {
 	id := ctrlID.GenULID()
 	actionPath := ap.sl.ActionPath(name)
+
 	return &executor{
 		ID: id,
 		// Stack related
 		handlerPath: fmt.Sprintf("%s/action", actionPath),
-		sockPath:    fmt.Sprintf("%s/tmp/%s_%s.sock", actionPath, name, id),
+		configPath:    fmt.Sprintf("%s/action/config.json", actionPath),
 	}
 }
 
-func (ex *executor) executeRPC(fd string , payload []byte) (interface{}, error) {
+
+func (ex *executor) EncodePayload(params map[string]interface{}) ([]byte, error) {
+	invReq := make(map[string]interface{}, 0)
+
+
+	invReq["params"] = params
+	invReq["ctx"] = map[string]interface{}{
+		"id": ex.ID,
+	}
+
+	return json.Marshal(invReq)
+}
+func (ex *executor) executeRPC(fd string, payload []byte) (interface{}, error) {
 
 	c, err := connectToRPC(fd)
 
@@ -155,7 +200,7 @@ func (ex *executor) executeRPC(fd string , payload []byte) (interface{}, error) 
 	}
 
 	var result struct {
-		ID string
+		ID      string
 		Payload []byte
 	}
 	err = json.Unmarshal(raw, &result)
@@ -182,10 +227,10 @@ func connectToRPC(fd string) (*rpc.Client, error) {
 		if err == nil {
 			break
 		}
-		time.Sleep(5*time.Millisecond)
+		time.Sleep(5 * time.Millisecond)
 		n = n + 1
 	}
 
-	return c, nil
+	return c, err
 
 }
